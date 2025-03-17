@@ -18,6 +18,9 @@ void init_game() {
     game_state = GAME_RUNNING;
     current_floor = 0;
     
+    // Initialize UI
+    init_ui();
+    
     // Initialize player
     init_player();
     
@@ -57,7 +60,7 @@ void game_loop() {
         draw();
         
         // Get player input
-        input = getch();
+        input = get_input();
         
         // Process input
         handle_input(input);
@@ -74,6 +77,9 @@ void game_loop() {
             game_state = GAME_OVER;
         }
     }
+    
+    // Cleanup UI before exit
+    cleanup_ui();
 }
 
 void update_game() {

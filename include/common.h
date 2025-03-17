@@ -353,7 +353,7 @@ extern MessageLog message_log;
 
 // Utility functions
 int random_range(int min, int max);
-char getch(void);
+int getch(void);
 void add_message(const char* fmt, ...);
 Floor* current_floor_ptr(void);
 const char* get_status_name(StatusType type);

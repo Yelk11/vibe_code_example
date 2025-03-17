@@ -5,20 +5,59 @@
 #include "quest.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/ioctl.h>
-#include <unistd.h>
+#include <ncurses.h>
+#include <locale.h>
+
+// Initialize ncurses
+void init_ui() {
+    // Set locale for UTF-8 support
+    setlocale(LC_ALL, "");
+    
+    // Initialize ncurses
+    initscr();
+    
+    // Enable keypad for special keys
+    keypad(stdscr, TRUE);
+    
+    // Don't echo input
+    noecho();
+    
+    // Don't wait for input
+    cbreak();
+    
+    // Hide cursor
+    curs_set(0);
+    
+    // Enable colors if available
+    if (has_colors()) {
+        start_color();
+        // Define color pairs
+        init_pair(1, COLOR_RED, COLOR_BLACK);
+        init_pair(2, COLOR_GREEN, COLOR_BLACK);
+        init_pair(3, COLOR_YELLOW, COLOR_BLACK);
+        init_pair(4, COLOR_BLUE, COLOR_BLACK);
+        init_pair(5, COLOR_MAGENTA, COLOR_BLACK);
+        init_pair(6, COLOR_CYAN, COLOR_BLACK);
+        init_pair(7, COLOR_WHITE, COLOR_BLACK);
+    }
+    
+    // Clear screen
+    clear();
+    refresh();
+}
+
+// Cleanup ncurses
+void cleanup_ui() {
+    endwin();
+}
 
 // Get terminal dimensions
 void get_terminal_size(int* width, int* height) {
-    struct winsize w;
-    ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
-    *width = w.ws_col;
-    *height = w.ws_row;
+    getmaxyx(stdscr, *height, *width);
 }
 
 // Draw the game screen
 void draw() {
-    system("clear");  // Clear screen
     Floor* floor = current_floor_ptr();
     
     // Get terminal dimensions
@@ -37,6 +76,9 @@ void draw() {
     if (start_x + map_width > MAP_WIDTH) start_x = MAP_WIDTH - map_width;
     if (start_y + map_height > MAP_HEIGHT) start_y = MAP_HEIGHT - map_height;
     
+    // Clear screen
+    clear();
+    
     // Draw map and messages side by side
     for (int y = start_y; y < start_y + map_height; y++) {
         // Draw map row
@@ -44,16 +86,16 @@ void draw() {
             // Check if tile is in field of view
             if (!floor->visible[y][x]) {
                 if (floor->discovered[y][x]) {
-                    printf("%c", floor->map[y][x]);  // Show explored but not visible
-                } else {
-                    printf(" ");  // Not explored
+                    mvaddch(y - start_y, x - start_x, floor->map[y][x]);
                 }
                 continue;
             }
             
             // Check for player
             if (x == player.x && y == player.y) {
-                printf("@");
+                attron(COLOR_PAIR(2));  // Green for player
+                mvaddch(y - start_y, x - start_x, '@');
+                attroff(COLOR_PAIR(2));
                 continue;
             }
             
@@ -62,7 +104,9 @@ void draw() {
             for (int i = 0; i < MAX_ENEMIES; i++) {
                 Enemy* enemy = &floor->enemies[i];
                 if (enemy->active && enemy->x == x && enemy->y == y) {
-                    printf("%c", enemy->symbol);
+                    attron(COLOR_PAIR(1));  // Red for enemies
+                    mvaddch(y - start_y, x - start_x, enemy->symbol);
+                    attroff(COLOR_PAIR(1));
                     enemy_found = 1;
                     break;
                 }
@@ -75,7 +119,9 @@ void draw() {
                 NPC* npc = &npcs[i];
                 if (npc->active && npc->floor == current_floor && 
                     npc->x == x && npc->y == y) {
-                    printf("%c", npc->symbol);
+                    attron(COLOR_PAIR(4));  // Blue for NPCs
+                    mvaddch(y - start_y, x - start_x, npc->symbol);
+                    attroff(COLOR_PAIR(4));
                     npc_found = 1;
                     break;
                 }
@@ -87,7 +133,9 @@ void draw() {
             for (int i = 0; i < MAX_ITEMS; i++) {
                 Item* item = &floor->items[i];
                 if (item->active && item->x == x && item->y == y) {
-                    printf("%c", item->symbol);
+                    attron(COLOR_PAIR(3));  // Yellow for items
+                    mvaddch(y - start_y, x - start_x, item->symbol);
+                    attroff(COLOR_PAIR(3));
                     item_found = 1;
                     break;
                 }
@@ -95,35 +143,55 @@ void draw() {
             if (item_found) continue;
             
             // Draw terrain
-            printf("%c", floor->map[y][x]);
+            mvaddch(y - start_y, x - start_x, floor->map[y][x]);
         }
         
         // Draw status and messages in the right margin
-        printf("  ");
         if (y == start_y) {
-            printf("Health: %d/%d", player.health, player.max_health);
+            attron(COLOR_PAIR(7));
+            mvprintw(y - start_y, map_width + 2, "Health: %d/%d", 
+                    player.health, player.max_health);
+            attroff(COLOR_PAIR(7));
         } else if (y == start_y + 1) {
-            printf("Mana: %d/%d", player.mana, player.max_mana);
+            attron(COLOR_PAIR(6));
+            mvprintw(y - start_y, map_width + 2, "Mana: %d/%d", 
+                    player.mana, player.max_mana);
+            attroff(COLOR_PAIR(6));
         } else if (y == start_y + 2) {
-            printf("Level: %d", player.level);
+            attron(COLOR_PAIR(3));
+            mvprintw(y - start_y, map_width + 2, "Level: %d", player.level);
+            attroff(COLOR_PAIR(3));
         } else if (y == start_y + 3) {
-            printf("Exp: %d/%d", player.exp, player.exp_next);
+            attron(COLOR_PAIR(5));
+            mvprintw(y - start_y, map_width + 2, "Exp: %d/%d", 
+                    player.exp, player.exp_next);
+            attroff(COLOR_PAIR(5));
         } else if (y == start_y + 4) {
-            printf("Gold: %d", player.gold);
+            attron(COLOR_PAIR(3));
+            mvprintw(y - start_y, map_width + 2, "Gold: %d", player.gold);
+            attroff(COLOR_PAIR(3));
         } else if (y == start_y + 6) {
-            printf("Messages:");
+            attron(COLOR_PAIR(7));
+            mvprintw(y - start_y, map_width + 2, "Messages:");
+            attroff(COLOR_PAIR(7));
         } else if (y > start_y + 6) {
             int msg_index = y - (start_y + 7);
             if (msg_index < MAX_MESSAGES && strlen(messages[msg_index]) > 0) {
-                printf("%s", messages[msg_index]);
+                attron(COLOR_PAIR(7));
+                mvprintw(y - start_y, map_width + 2, "%s", messages[msg_index]);
+                attroff(COLOR_PAIR(7));
             }
         }
-        
-        printf("\n");
     }
     
     // Draw controls at the bottom
-    printf("\nControls: [w/a/s/d] Move | [i]nventory | [q]uests | [v]iew achievements | [t]alk | [Q]uit\n");
+    attron(COLOR_PAIR(7));
+    mvprintw(term_height - 1, 0, 
+             "Controls: [w/a/s/d] Move | [i]nventory | [q]uests | [v]iew achievements | [t]alk | [Q]uit");
+    attroff(COLOR_PAIR(7));
+    
+    // Refresh the screen
+    refresh();
 }
 
 // Update camera position
@@ -135,6 +203,37 @@ void update_camera() {
     // Keep camera within map bounds
     camera_x = max(0, min(camera_x, MAP_WIDTH - SCREEN_WIDTH));
     camera_y = max(0, min(camera_y, MAP_HEIGHT - SCREEN_HEIGHT));
+}
+
+// Handle window resize
+void handle_resize() {
+    // Clear and redraw
+    clear();
+    draw();
+}
+
+// Get input from user
+char get_input() {
+    return getch();
+}
+
+// Add a message to the message log
+void add_message(const char* fmt, ...) {
+    // Shift messages up
+    for (int i = 0; i < MAX_MESSAGES - 1; i++) {
+        strcpy(messages[i], messages[i + 1]);
+    }
+    
+    // Format and add new message
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(messages[MAX_MESSAGES - 1], MESSAGE_LENGTH, fmt, args);
+    va_end(args);
+}
+
+// Clear all messages
+void clear_messages() {
+    memset(messages, 0, sizeof(messages));
 }
 
 // Render UI elements
@@ -200,15 +299,4 @@ void load_game(const char* filename) {
     
     fclose(file);
     add_message("Game loaded successfully!");
-}
-
-// Handle window resize
-void handle_resize() {
-    // Get new terminal dimensions
-    int term_width, term_height;
-    get_terminal_size(&term_width, &term_height);
-    
-    // Clear screen and redraw
-    system("clear");
-    draw();
 } 
