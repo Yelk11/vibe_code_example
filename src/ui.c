@@ -26,8 +26,8 @@ void draw() {
     get_terminal_size(&term_width, &term_height);
     
     // Calculate map scaling
-    int map_width = min(MAP_WIDTH, term_width - 2);  // Leave 1 char margin
-    int map_height = min(MAP_HEIGHT, term_height - 8);  // Leave space for status bar and messages
+    int map_width = min(MAP_WIDTH, term_width - 40);  // Leave space for messages
+    int map_height = min(MAP_HEIGHT, term_height - 8);  // Leave space for status bar
     
     // Calculate starting position to center the map
     int start_x = max(0, player.x - map_width / 2);
@@ -37,8 +37,9 @@ void draw() {
     if (start_x + map_width > MAP_WIDTH) start_x = MAP_WIDTH - map_width;
     if (start_y + map_height > MAP_HEIGHT) start_y = MAP_HEIGHT - map_height;
     
-    // Draw map
+    // Draw map and messages side by side
     for (int y = start_y; y < start_y + map_height; y++) {
+        // Draw map row
         for (int x = start_x; x < start_x + map_width; x++) {
             // Check if tile is in field of view
             if (!floor->visible[y][x]) {
@@ -96,25 +97,32 @@ void draw() {
             // Draw terrain
             printf("%c", floor->map[y][x]);
         }
+        
+        // Draw status and messages in the right margin
+        printf("  ");
+        if (y == start_y) {
+            printf("Health: %d/%d", player.health, player.max_health);
+        } else if (y == start_y + 1) {
+            printf("Mana: %d/%d", player.mana, player.max_mana);
+        } else if (y == start_y + 2) {
+            printf("Level: %d", player.level);
+        } else if (y == start_y + 3) {
+            printf("Exp: %d/%d", player.exp, player.exp_next);
+        } else if (y == start_y + 4) {
+            printf("Gold: %d", player.gold);
+        } else if (y == start_y + 6) {
+            printf("Messages:");
+        } else if (y > start_y + 6) {
+            int msg_index = y - (start_y + 7);
+            if (msg_index < MAX_MESSAGES && strlen(messages[msg_index]) > 0) {
+                printf("%s", messages[msg_index]);
+            }
+        }
+        
         printf("\n");
     }
     
-    // Draw status bar
-    printf("\nHealth: %d/%d | Mana: %d/%d | Level: %d | Exp: %d/%d | Gold: %d\n",
-           player.health, player.max_health,
-           player.mana, player.max_mana,
-           player.level, player.exp, player.exp_next,
-           player.gold);
-    
-    // Draw messages
-    printf("\nMessages:\n");
-    for (int i = 0; i < MAX_MESSAGES; i++) {
-        if (strlen(messages[i]) > 0) {
-            printf("%s\n", messages[i]);
-        }
-    }
-    
-    // Draw controls
+    // Draw controls at the bottom
     printf("\nControls: [w/a/s/d] Move | [i]nventory | [q]uests | [v]iew achievements | [t]alk | [Q]uit\n");
 }
 
