@@ -5,15 +5,41 @@
 #include "quest.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
+
+// Get terminal dimensions
+void get_terminal_size(int* width, int* height) {
+    struct winsize w;
+    ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+    *width = w.ws_col;
+    *height = w.ws_row;
+}
 
 // Draw the game screen
 void draw() {
     system("clear");  // Clear screen
     Floor* floor = current_floor_ptr();
     
+    // Get terminal dimensions
+    int term_width, term_height;
+    get_terminal_size(&term_width, &term_height);
+    
+    // Calculate map scaling
+    int map_width = min(MAP_WIDTH, term_width - 2);  // Leave 1 char margin
+    int map_height = min(MAP_HEIGHT, term_height - 8);  // Leave space for status bar and messages
+    
+    // Calculate starting position to center the map
+    int start_x = max(0, player.x - map_width / 2);
+    int start_y = max(0, player.y - map_height / 2);
+    
+    // Ensure we don't go past map boundaries
+    if (start_x + map_width > MAP_WIDTH) start_x = MAP_WIDTH - map_width;
+    if (start_y + map_height > MAP_HEIGHT) start_y = MAP_HEIGHT - map_height;
+    
     // Draw map
-    for (int y = 0; y < MAP_HEIGHT; y++) {
-        for (int x = 0; x < MAP_WIDTH; x++) {
+    for (int y = start_y; y < start_y + map_height; y++) {
+        for (int x = start_x; x < start_x + map_width; x++) {
             // Check if tile is in field of view
             if (!floor->visible[y][x]) {
                 if (floor->discovered[y][x]) {
@@ -166,4 +192,15 @@ void load_game(const char* filename) {
     
     fclose(file);
     add_message("Game loaded successfully!");
+}
+
+// Handle window resize
+void handle_resize() {
+    // Get new terminal dimensions
+    int term_width, term_height;
+    get_terminal_size(&term_width, &term_height);
+    
+    // Clear screen and redraw
+    system("clear");
+    draw();
 } 

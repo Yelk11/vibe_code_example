@@ -150,10 +150,12 @@ void place_floor_key(Floor* floor, Room* room) {
 
 // Initialize a single floor
 void init_floor(Floor* floor) {
-    // Fill map with walls
+    // Fill map with walls and initialize visibility arrays
     for (int y = 0; y < MAP_HEIGHT; y++) {
         for (int x = 0; x < MAP_WIDTH; x++) {
             floor->map[y][x] = '#';
+            floor->visible[y][x] = 0;
+            floor->discovered[y][x] = 0;
         }
     }
     
@@ -200,6 +202,13 @@ void init_floor(Floor* floor) {
     }
     
     floor->num_doors = 0;  // Initialize door count
+    
+    // Set player position in first room if this is floor 0
+    if (current_floor == 0) {
+        Room* first_room = &floor->rooms[0];
+        player.x = first_room->x + first_room->width / 2;
+        player.y = first_room->y + first_room->height / 2;
+    }
     
     // After generating basic rooms and connections
     if (current_floor > 0) {  // Don't place locked doors on first floor

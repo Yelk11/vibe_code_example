@@ -94,6 +94,9 @@ void move_player(char input) {
     player.x = new_x;
     player.y = new_y;
     
+    // Update field of view after movement
+    update_fov();
+    
     // Handle stairs
     if (floor->map[new_y][new_x] == '<') {
         if (current_floor > 0) {
@@ -101,6 +104,7 @@ void move_player(char input) {
             floor = current_floor_ptr();
             player.x = floor->down_stairs_x;
             player.y = floor->down_stairs_y;
+            update_fov();  // Update FOV after changing floors
             add_message("You climb up the stairs to floor %d", current_floor + 1);
         }
     } else if (floor->map[new_y][new_x] == '>') {
@@ -109,6 +113,7 @@ void move_player(char input) {
             floor = current_floor_ptr();
             player.x = floor->up_stairs_x;
             player.y = floor->up_stairs_y;
+            update_fov();  // Update FOV after changing floors
             add_message("You climb down the stairs to floor %d", current_floor + 1);
         }
     }

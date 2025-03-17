@@ -38,7 +38,18 @@ void init_game() {
 // Main game loop
 void game_loop() {
     char input;
+    int last_width = 0, last_height = 0;
+    int current_width, current_height;
+    
     while (game_state != GAME_OVER) {
+        // Check for window resize
+        get_terminal_size(&current_width, &current_height);
+        if (current_width != last_width || current_height != last_height) {
+            handle_resize();
+            last_width = current_width;
+            last_height = current_height;
+        }
+        
         // Update field of view
         update_fov();
         
