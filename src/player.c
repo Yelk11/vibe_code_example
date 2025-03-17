@@ -48,19 +48,12 @@ void init_player() {
 
 // Handle player movement and actions
 void move_player(char input) {
-    // Check for ability hotkeys
-    for (int i = 0; i < player.num_abilities; i++) {
-        if (input == player.abilities[i].key) {
-            use_ability(i);
-            return;
-        }
-    }
-    
-    Floor* floor = current_floor_ptr();
     int new_x = player.x;
     int new_y = player.y;
+    Floor* floor = current_floor_ptr();
     
-    switch(input) {
+    // Calculate new position based on input
+    switch (input) {
         case 'w': new_y--; break;
         case 's': new_y++; break;
         case 'a': new_x--; break;
@@ -69,29 +62,71 @@ void move_player(char input) {
         default: return;
     }
     
-    // Check if the new position is within bounds and not a wall
-    if (new_x > 0 && new_x < MAP_WIDTH-1 && 
-        new_y > 0 && new_y < MAP_HEIGHT-1 && 
-        floor->map[new_y][new_x] != '#') {
-        player.x = new_x;
-        player.y = new_y;
+    // Check if new position is within bounds
+    if (new_x < 0 || new_x >= MAP_WIDTH || new_y < 0 || new_y >= MAP_HEIGHT) {
+        return;
+    }
+    
+    // Check for locked door
+    if (floor->map[new_y][new_x] == TERRAIN_LOCKED_DOOR) {
+        // Find the door
+        Door* target_door = NULL;
+        for (int i = 0; i < floor->num_doors; i++) {
+            if (floor->doors[i].x == new_x && floor->doors[i].y == new_y) {
+                target_door = &floor->doors[i];
+                break;
+            }
+        }
         
-        // Check if player is on stairs
-        char current_tile = floor->map[player.y][player.x];
-        if (current_tile == '<' && current_floor > 0) {
-            // Moving up
+        if (target_door && target_door->is_locked) {
+            // Check inventory for matching key
+            for (int i = 0; i < player.num_items; i++) {
+                if (player.inventory[i].type == ITEM_KEY &&
+                    player.inventory[i].key_id == target_door->key_id &&
+                    player.inventory[i].target_floor == current_floor) {
+                    // Unlock the door
+                    target_door->is_locked = 0;
+                    floor->map[new_y][new_x] = TERRAIN_DOOR;
+                    add_message("You unlock the door with %s!", player.inventory[i].name);
+                    remove_from_inventory(i);
+                    return;
+                }
+            }
+            add_message("The door is locked. You need a key to open it.");
+            return;
+        }
+    }
+    
+    // Check if new position is walkable
+    if (floor->map[new_y][new_x] == TERRAIN_WALL ||
+        floor->map[new_y][new_x] == TERRAIN_LOCKED_DOOR) {
+        return;
+    }
+    
+    // Move player
+    player.x = new_x;
+    player.y = new_y;
+    
+    // Handle stairs
+    if (floor->map[new_y][new_x] == '<') {
+        if (current_floor > 0) {
             current_floor--;
             floor = current_floor_ptr();
             player.x = floor->down_stairs_x;
             player.y = floor->down_stairs_y;
-        } else if (current_tile == '>' && current_floor < MAX_FLOORS - 1) {
-            // Moving down
+            add_message("You climb up the stairs to floor %d", current_floor + 1);
+        }
+    } else if (floor->map[new_y][new_x] == '>') {
+        if (current_floor < MAX_FLOORS - 1) {
             current_floor++;
             floor = current_floor_ptr();
             player.x = floor->up_stairs_x;
             player.y = floor->up_stairs_y;
+            add_message("You climb down the stairs to floor %d", current_floor + 1);
         }
     }
+    
+    game_turn++;
 }
 
 // Level up the player

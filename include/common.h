@@ -75,6 +75,7 @@ typedef enum {
     TERRAIN_WATER = '~',
     TERRAIN_LAVA = '^',
     TERRAIN_DOOR = '+',
+    TERRAIN_LOCKED_DOOR = 'D',  // New type for locked doors
     TERRAIN_GRASS = '"',
     TERRAIN_TRAP = '_'
 } TerrainType;
@@ -110,6 +111,7 @@ typedef struct Player Player;
 typedef struct Room Room;
 typedef struct Floor Floor;
 typedef struct MessageLog MessageLog;
+typedef struct Door Door;  // New door structure
 
 // Structure definitions
 struct Item {
@@ -123,6 +125,8 @@ struct Item {
     int value;      // Gold value or effect value
     int power;      // Damage for weapons, defense for armor
     int durability; // Number of uses remaining
+    int key_id;     // Unique ID for keys to match with doors
+    int target_floor;  // Floor where this key should be used
 };
 
 struct Enemy {
@@ -204,6 +208,8 @@ struct Floor {
     int down_stairs_y;
     Enemy enemies[MAX_ENEMIES];
     Item items[MAX_ITEMS];
+    Door doors[MAX_DOORS];  // Array of doors on this floor
+    int num_doors;         // Number of doors currently on floor
     TerrainType terrain[MAP_HEIGHT][MAP_WIDTH];
 };
 
@@ -211,6 +217,17 @@ struct MessageLog {
     char messages[MAX_MESSAGES][MESSAGE_LENGTH];
     int num_messages;
 };
+
+// Add door structure before Item structure
+struct Door {
+    int x;
+    int y;
+    int floor_num;  // Which floor the door is on
+    int key_id;     // Unique ID to match with corresponding key
+    int is_locked;  // Whether the door is currently locked
+};
+
+#define MAX_DOORS 10  // Maximum number of doors per floor
 
 // Global game state
 extern Floor floors[MAX_FLOORS];

@@ -1,4 +1,5 @@
 #include "map.h"
+#include "player.h"
 
 // Get current floor
 Floor* current_floor_ptr() {
@@ -58,6 +59,67 @@ void place_stairs_in_room(Room* room, int* stair_x, int* stair_y) {
     *stair_y = random_range(room->y + 1, room->y + room->height - 2);
 }
 
+// Place a locked door between two rooms
+void place_locked_door(Floor* floor, Room* room1, Room* room2, int key_id) {
+    int x1 = room1->x + room1->width / 2;
+    int y1 = room1->y + room1->height / 2;
+    int x2 = room2->x + room2->width / 2;
+    int y2 = room2->y + room2->height / 2;
+    
+    // Find a point along the path between rooms for the door
+    int door_x = (x1 + x2) / 2;
+    int door_y = (y1 + y2) / 2;
+    
+    // Adjust door position to be on a wall
+    if (floor->map[door_y-1][door_x] == '#' && floor->map[door_y+1][door_x] == '#') {
+        // Vertical door
+        floor->map[door_y][door_x] = TERRAIN_LOCKED_DOOR;
+    } else if (floor->map[door_y][door_x-1] == '#' && floor->map[door_y][door_x+1] == '#') {
+        // Horizontal door
+        floor->map[door_y][door_x] = TERRAIN_LOCKED_DOOR;
+    }
+    
+    // Add door to floor's door array
+    if (floor->num_doors < MAX_DOORS) {
+        Door door = {
+            .x = door_x,
+            .y = door_y,
+            .floor_num = current_floor,
+            .key_id = key_id,
+            .is_locked = 1
+        };
+        floor->doors[floor->num_doors++] = door;
+    }
+}
+
+// Place a key in a room
+void place_key(Floor* floor, Room* room, int key_id, int target_floor) {
+    // Find an empty spot in the room
+    int x = random_range(room->x + 1, room->x + room->width - 2);
+    int y = random_range(room->y + 1, room->y + room->height - 2);
+    
+    // Create the key
+    for (int i = 0; i < MAX_ITEMS; i++) {
+        if (!floor->items[i].active) {
+            floor->items[i] = (Item){
+                .name = "Ancient Key",
+                .description = "A mysterious key that might open something important",
+                .x = x,
+                .y = y,
+                .symbol = 'k',
+                .active = 1,
+                .type = ITEM_KEY,
+                .value = 100,
+                .key_id = key_id,
+                .target_floor = target_floor
+            };
+            strcpy(floor->items[i].name, "Ancient Key");
+            strcpy(floor->items[i].description, "A mysterious key that might open something important");
+            break;
+        }
+    }
+}
+
 // Initialize a single floor
 void init_floor(Floor* floor) {
     // Fill map with walls
@@ -105,6 +167,27 @@ void init_floor(Floor* floor) {
             floor->rooms[floor->num_rooms++] = new_room;
         }
         attempts++;
+    }
+    
+    floor->num_doors = 0;  // Initialize door count
+    
+    // After generating basic rooms and connections
+    if (current_floor > 0) {  // Don't place locked doors on first floor
+        // Place 1-2 locked doors per floor
+        int num_locked_doors = random_range(1, 2);
+        for (int i = 0; i < num_locked_doors && floor->num_rooms > 2; i++) {
+            // Pick two random rooms that aren't the first room
+            int room1_idx = random_range(1, floor->num_rooms - 1);
+            int room2_idx = random_range(1, floor->num_rooms - 1);
+            if (room1_idx == room2_idx) continue;
+            
+            int key_id = current_floor * 100 + i;  // Generate unique key ID
+            place_locked_door(floor, &floor->rooms[room1_idx], &floor->rooms[room2_idx], key_id);
+            
+            // Place key in a room before the door
+            int key_room_idx = random_range(0, room1_idx);
+            place_key(floor, &floor->rooms[key_room_idx], key_id, current_floor);
+        }
     }
     
     // Place stairs
