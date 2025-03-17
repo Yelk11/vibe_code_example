@@ -1,5 +1,6 @@
 #include "player.h"
 #include "map.h"
+#include "enemy.h"
 
 // Initialize player
 void init_player() {
@@ -102,18 +103,22 @@ void move_player(char input) {
         if (current_floor > 0) {
             current_floor--;
             floor = current_floor_ptr();
+            init_floor(floor);  // Initialize the new floor
             player.x = floor->down_stairs_x;
             player.y = floor->down_stairs_y;
             update_fov();  // Update FOV after changing floors
+            init_enemies();  // Initialize enemies for new floor
             add_message("You climb up the stairs to floor %d", current_floor + 1);
         }
     } else if (floor->map[new_y][new_x] == '>') {
         if (current_floor < MAX_FLOORS - 1) {
             current_floor++;
             floor = current_floor_ptr();
+            init_floor(floor);  // Initialize the new floor
             player.x = floor->up_stairs_x;
             player.y = floor->up_stairs_y;
             update_fov();  // Update FOV after changing floors
+            init_enemies();  // Initialize enemies for new floor
             add_message("You climb down the stairs to floor %d", current_floor + 1);
         }
     }

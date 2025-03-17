@@ -132,7 +132,7 @@ void move_enemies() {
         }
         
         // If player is visible, move toward them
-        if (dist < VIEW_RADIUS) {
+        if (dist < VIEW_RADIUS && floor->visible[enemy->y][enemy->x]) {
             // Try to move closer to player
             int new_x = enemy->x;
             int new_y = enemy->y;
