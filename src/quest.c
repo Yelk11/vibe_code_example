@@ -1,13 +1,16 @@
 #include "quest.h"
+#include "player.h"
 #include "map.h"
+#include "game.h"
 
-// Global state
-Quest quests[MAX_QUESTS];
-int num_quests = 0;
-NPC npcs[MAX_NPCS];
-int num_npcs = 0;
-Achievement achievements[MAX_ACHIEVEMENTS];
-int num_achievements = 0;
+// Function declarations
+int add_to_inventory(Item item);
+void level_up(void);
+
+// Update achievements
+void update_achievements() {
+    check_achievement_progress();
+}
 
 // Dialogue tree
 #define MAX_DIALOGUE_NODES 100
@@ -403,6 +406,20 @@ void check_achievement_progress() {
                     }
                 }
                 break;
+
+            case ACHIEVEMENT_FIND_UNIQUE_ITEMS:
+                // Count unique items in player inventory
+                ach->current_amount = 0;
+                for (int j = 0; j < player.num_items; j++) {
+                    if (player.inventory[j].type != ITEM_NONE) {
+                        ach->current_amount++;
+                    }
+                }
+                break;
+
+            case ACHIEVEMENT_MAX_LEVEL:
+                ach->current_amount = player.level;
+                break;
                 
             // Add other achievement types...
         }
@@ -445,5 +462,59 @@ void display_achievements() {
     }
     
     printf("\nPress any key to continue...");
+    getch();
+}
+
+// View quests
+void view_quests() {
+    system("clear");
+    printf("\n=== Quests ===\n\n");
+    
+    for (int i = 0; i < num_quests; i++) {
+        Quest* quest = &quests[i];
+        printf("%s %s%s\n", 
+               quest->status == QUEST_COMPLETED ? "[X]" : "[ ]",
+               quest->is_main_quest ? "[MAIN] " : "",
+               quest->name);
+        printf("    %s\n", quest->description);
+        
+        if (quest->status == QUEST_ACTIVE) {
+            printf("    Objectives:\n");
+            for (int j = 0; j < quest->num_objectives; j++) {
+                Objective* obj = &quest->objectives[j];
+                printf("    %s %s (%d/%d)\n",
+                       obj->current_amount >= obj->required_amount ? "[X]" : "[ ]",
+                       obj->description,
+                       obj->current_amount,
+                       obj->required_amount);
+            }
+        }
+        printf("\n");
+    }
+    
+    printf("Press any key to continue...");
+    getch();
+}
+
+// View achievements
+void view_achievements() {
+    system("clear");
+    printf("\n=== Achievements ===\n\n");
+    
+    for (int i = 0; i < num_achievements; i++) {
+        Achievement* ach = &achievements[i];
+        printf("%s %s\n", 
+               ach->is_unlocked ? "[X]" : "[ ]",
+               ach->name);
+        printf("    %s\n", ach->description);
+        if (!ach->is_unlocked) {
+            printf("    Progress: %d/%d\n", 
+                   ach->current_amount, 
+                   ach->required_amount);
+        }
+        printf("\n");
+    }
+    
+    printf("Press any key to continue...");
     getch();
 } 

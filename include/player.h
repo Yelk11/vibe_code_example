@@ -1,24 +1,31 @@
 #ifndef PLAYER_H
 #define PLAYER_H
 
+#include <stdbool.h>
 #include "common.h"
+#include "item.h"
 
-// Player management functions
+// Functions
 void init_player(void);
-void move_player(char input);
-void level_up(void);
-void handle_inventory(void);
-int add_to_inventory(Item item);
+void move_player(char direction);
+int add_to_inventory(Item item);  // Returns 1 on success, 0 on failure
 void remove_from_inventory(int index);
-void use_item(int index);
+void use_item(Item* item);
+void equip_weapon(Item weapon);
+void equip_armor(Item armor);
+void view_inventory(void);
+void level_up(void);
+void apply_status_effect(StatusType type, int duration, int power);
+void handle_inventory(void);
 void drop_item(int index);
 void equip_item(int index);
-
-// Ability and status effect functions
 void add_ability(AbilityType type);
 void use_ability(int index);
 void update_abilities(void);
-void apply_status_effect(StatusType type, int duration, int power);
 void update_status_effects(void);
+void check_items(void);
 
-#endif // PLAYER_H 
+// Global player state
+extern Player player;
+
+#endif 

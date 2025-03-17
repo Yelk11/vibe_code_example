@@ -120,6 +120,34 @@ void place_key(Floor* floor, Room* room, int key_id, int target_floor) {
     }
 }
 
+// Place a floor key in a room
+void place_floor_key(Floor* floor, Room* room) {
+    // Find an empty spot in the room
+    int x = random_range(room->x + 1, room->x + room->width - 2);
+    int y = random_range(room->y + 1, room->y + room->height - 2);
+    
+    // Create the floor key
+    for (int i = 0; i < MAX_ITEMS; i++) {
+        if (!floor->items[i].active) {
+            floor->items[i] = (Item){
+                .name = "Floor Key",
+                .description = "A key that unlocks the way forward",
+                .x = x,
+                .y = y,
+                .symbol = 'K',
+                .active = 1,
+                .type = ITEM_KEY,
+                .value = 200,
+                .key_id = current_floor + 1,  // Key ID matches next floor
+                .target_floor = current_floor  // Used on current floor
+            };
+            strcpy(floor->items[i].name, "Floor Key");
+            strcpy(floor->items[i].description, "A key that unlocks the way forward");
+            break;
+        }
+    }
+}
+
 // Initialize a single floor
 void init_floor(Floor* floor) {
     // Fill map with walls
@@ -128,6 +156,8 @@ void init_floor(Floor* floor) {
             floor->map[y][x] = '#';
         }
     }
+    
+    floor->has_floor_key = 0;  // Initialize floor key status
     
     // Generate rooms
     floor->num_rooms = 0;
@@ -205,7 +235,16 @@ void init_floor(Floor* floor) {
         }
         Room* down_room = &floor->rooms[down_room_idx];
         place_stairs_in_room(down_room, &floor->down_stairs_x, &floor->down_stairs_y);
-        floor->map[floor->down_stairs_y][floor->down_stairs_x] = '>';
+        // Place locked stairs instead of normal stairs
+        floor->map[floor->down_stairs_y][floor->down_stairs_x] = TERRAIN_LOCKED_STAIRS;
+        
+        // Place floor key in a room that's not the stairs room
+        int key_room_idx;
+        do {
+            key_room_idx = random_range(0, floor->num_rooms - 1);
+        } while (key_room_idx == down_room_idx);
+        
+        place_floor_key(floor, &floor->rooms[key_room_idx]);
     }
 }
 

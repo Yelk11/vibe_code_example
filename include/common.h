@@ -29,6 +29,14 @@
 #define MAX_DESC_LEN 128
 #define MAX_MESSAGES 10
 #define MESSAGE_LENGTH 80
+#define MAX_DOORS 10  // Maximum number of doors per floor
+#define MAX_DIALOGUE_LEN 256
+#define MAX_NPCS 20
+#define MAX_QUESTS 20
+#define MAX_OBJECTIVES 5
+#define MAX_ACHIEVEMENTS 20
+#define MAX_INVENTORY 20
+#define MAX_STATUS_EFFECTS 10
 
 // Color codes for terminal
 #define COLOR_RESET   "\x1b[0m"
@@ -40,8 +48,26 @@
 #define COLOR_CYAN    "\x1b[36m"
 #define COLOR_WHITE   "\x1b[37m"
 
+// Forward declarations of structures
+typedef struct Item Item;
+typedef struct Enemy Enemy;
+typedef struct StatusEffect StatusEffect;
+typedef struct Ability Ability;
+typedef struct Player Player;
+typedef struct Room Room;
+typedef struct Floor Floor;
+typedef struct MessageLog MessageLog;
+typedef struct Door Door;
+typedef struct Quest Quest;
+typedef struct NPC NPC;
+typedef struct Achievement Achievement;
+typedef struct Objective Objective;
+typedef struct DialogueNode DialogueNode;
+typedef struct DialogueOption DialogueOption;
+
 // Item types
 typedef enum {
+    ITEM_NONE,
     ITEM_WEAPON,
     ITEM_ARMOR,
     ITEM_POTION,
@@ -75,7 +101,8 @@ typedef enum {
     TERRAIN_WATER = '~',
     TERRAIN_LAVA = '^',
     TERRAIN_DOOR = '+',
-    TERRAIN_LOCKED_DOOR = 'D',  // New type for locked doors
+    TERRAIN_LOCKED_DOOR = 'D',
+    TERRAIN_LOCKED_STAIRS = '%',
     TERRAIN_GRASS = '"',
     TERRAIN_TRAP = '_'
 } TerrainType;
@@ -84,11 +111,11 @@ typedef enum {
 typedef enum {
     STATUS_NONE,
     STATUS_POISON,     // Damage over time
-    STATUS_BURNING,    // More damage over time
-    STATUS_FROZEN,     // Reduced speed
-    STATUS_BLESSED,    // Increased power
-    STATUS_CURSED,     // Decreased defense
-    MAX_STATUS_EFFECTS
+    STATUS_BURN,       // Damage over time + reduced defense
+    STATUS_FREEZE,     // Reduced speed
+    STATUS_STUN,       // Skip turn
+    STATUS_BLIND,      // Reduced accuracy
+    STATUS_BERSERK     // Increased damage + reduced defense
 } StatusType;
 
 // Special ability types
@@ -102,16 +129,48 @@ typedef enum {
     MAX_ABILITIES
 } AbilityType;
 
-// Forward declarations of structures
-typedef struct Item Item;
-typedef struct Enemy Enemy;
-typedef struct StatusEffect StatusEffect;
-typedef struct Ability Ability;
-typedef struct Player Player;
-typedef struct Room Room;
-typedef struct Floor Floor;
-typedef struct MessageLog MessageLog;
-typedef struct Door Door;  // New door structure
+// Quest status
+typedef enum {
+    QUEST_INACTIVE,
+    QUEST_ACTIVE,
+    QUEST_COMPLETED,
+    QUEST_FAILED
+} QuestStatus;
+
+// Quest objective types
+typedef enum {
+    OBJECTIVE_KILL_ENEMIES,
+    OBJECTIVE_COLLECT_ITEMS,
+    OBJECTIVE_REACH_LOCATION,
+    OBJECTIVE_TALK_TO_NPC
+} ObjectiveType;
+
+// NPC types
+typedef enum {
+    NPC_QUEST_GIVER,
+    NPC_BLACKSMITH,
+    NPC_SAGE,
+    NPC_MERCHANT
+} NPCType;
+
+// Achievement types
+typedef enum {
+    ACHIEVEMENT_KILL_BOSS,
+    ACHIEVEMENT_REACH_FLOOR,
+    ACHIEVEMENT_COLLECT_GOLD,
+    ACHIEVEMENT_COMPLETE_QUESTS,
+    ACHIEVEMENT_FIND_UNIQUE_ITEMS,
+    ACHIEVEMENT_MAX_LEVEL
+} AchievementType;
+
+// Door structure definition
+struct Door {
+    int x;
+    int y;
+    int floor_num;  // Which floor the door is on
+    int key_id;     // Unique ID to match with corresponding key
+    int is_locked;  // Whether the door is currently locked
+};
 
 // Structure definitions
 struct Item {
@@ -173,7 +232,7 @@ struct Player {
     int power;
     int defense;
     int gold;
-    Item inventory[INVENTORY_SIZE];
+    Item inventory[MAX_INVENTORY];
     Item* equipment[MAX_EQUIPMENT_SLOTS];
     int num_items;
     int mana;
@@ -211,6 +270,7 @@ struct Floor {
     Door doors[MAX_DOORS];  // Array of doors on this floor
     int num_doors;         // Number of doors currently on floor
     TerrainType terrain[MAP_HEIGHT][MAP_WIDTH];
+    int has_floor_key;  // Whether the floor key has been collected
 };
 
 struct MessageLog {
@@ -218,23 +278,76 @@ struct MessageLog {
     int num_messages;
 };
 
-// Add door structure before Item structure
-struct Door {
-    int x;
-    int y;
-    int floor_num;  // Which floor the door is on
-    int key_id;     // Unique ID to match with corresponding key
-    int is_locked;  // Whether the door is currently locked
+struct Objective {
+    ObjectiveType type;
+    int required_amount;
+    int current_amount;
+    char description[MAX_DESC_LEN];
+    int target_id;  // Enemy type, item type, or location ID
 };
 
-#define MAX_DOORS 10  // Maximum number of doors per floor
+struct Quest {
+    int id;
+    char name[MAX_NAME_LEN];
+    char description[MAX_DESC_LEN];
+    QuestStatus status;
+    int is_main_quest;
+    int num_objectives;
+    Objective objectives[MAX_OBJECTIVES];
+    int prereq_quest_id;
+    int reward_gold;
+    int reward_exp;
+    Item reward_item;
+    int has_choice;
+};
 
-// Global game state
-extern Floor floors[MAX_FLOORS];
-extern int current_floor;
-extern Player player;
+struct NPC {
+    int id;
+    char name[MAX_NAME_LEN];
+    char description[MAX_DESC_LEN];
+    NPCType type;
+    char symbol;
+    int x;
+    int y;
+    int floor;
+    int active;
+    int current_dialogue_id;
+    int shop_inventory[INVENTORY_SIZE];
+    int num_shop_items;
+    int quest_id;  // -1 if no quest
+    char dialogue[MAX_DIALOGUE_LEN];
+};
+
+struct Achievement {
+    char name[MAX_NAME_LEN];
+    char description[MAX_DESC_LEN];
+    AchievementType type;
+    int required_amount;
+    int current_amount;
+    int is_unlocked;
+};
+
+struct DialogueOption {
+    char text[MAX_DIALOGUE_LEN];
+    int next_dialogue_id;
+    int quest_id;
+    int required_quest_id;
+};
+
+struct DialogueNode {
+    int id;
+    char text[MAX_DIALOGUE_LEN];
+    int num_options;
+    DialogueOption options[4];  // Max 4 options per dialogue node
+};
+
+// Global variables (moved after struct definitions)
 extern int camera_x;
 extern int camera_y;
+extern char messages[MAX_MESSAGES][MESSAGE_LENGTH];
+extern int current_floor;
+extern Floor floors[MAX_FLOORS];
+extern Player player;
 extern int game_turn;
 extern MessageLog message_log;
 
@@ -242,5 +355,7 @@ extern MessageLog message_log;
 int random_range(int min, int max);
 char getch(void);
 void add_message(const char* fmt, ...);
+Floor* current_floor_ptr(void);
+const char* get_status_name(StatusType type);
 
 #endif // COMMON_H 

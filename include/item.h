@@ -3,10 +3,12 @@
 
 #include "common.h"
 
+// Item creation and initialization
+ItemType get_random_item_type(void);
+Item create_random_item(int floor_level);
+void init_items(Floor* floor);
+
 // Item management functions
-void init_items(void);
-Item generate_item(int floor_level);
-void check_items(void);
 void apply_item_effect(Item* item);
 void place_items(Floor* floor);
 

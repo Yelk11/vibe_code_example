@@ -2,6 +2,9 @@
 #include <termios.h>
 #include <unistd.h>
 #include "common.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 // Get character input without waiting for Enter
 char getch() {
@@ -30,25 +33,40 @@ int random_range(int min, int max) {
     return min + (rand() % (max - min + 1));
 }
 
+// Get status effect name
+const char* get_status_name(StatusType type) {
+    switch (type) {
+        case STATUS_NONE:
+            return "None";
+        case STATUS_POISON:
+            return "Poisoned";
+        case STATUS_BURN:
+            return "Burning";
+        case STATUS_FREEZE:
+            return "Frozen";
+        case STATUS_STUN:
+            return "Stunned";
+        case STATUS_BLIND:
+            return "Blinded";
+        case STATUS_BERSERK:
+            return "Berserk";
+        default:
+            return "Unknown";
+    }
+}
+
 // Add message to the message log
 void add_message(const char* fmt, ...) {
-    // Shift older messages up
-    for (int i = MAX_MESSAGES - 1; i > 0; i--) {
-        strncpy(message_log.messages[i], message_log.messages[i-1], MESSAGE_LENGTH - 1);
-        message_log.messages[i][MESSAGE_LENGTH - 1] = '\0';
-    }
-    
-    // Format and add new message
     va_list args;
     va_start(args, fmt);
-    vsnprintf(message_log.messages[0], MESSAGE_LENGTH - 1, fmt, args);
-    va_end(args);
     
-    // Ensure null termination
-    message_log.messages[0][MESSAGE_LENGTH - 1] = '\0';
-    
-    // Update message count
-    if (message_log.num_messages < MAX_MESSAGES) {
-        message_log.num_messages++;
+    // Shift messages up
+    for (int i = 0; i < MAX_MESSAGES - 1; i++) {
+        strcpy(messages[i], messages[i + 1]);
     }
+    
+    // Add new message at bottom
+    vsnprintf(messages[MAX_MESSAGES - 1], MESSAGE_LENGTH, fmt, args);
+    
+    va_end(args);
 } 

@@ -1,129 +1,159 @@
 #include "enemy.h"
+#include "map.h"
 #include "item.h"
 #include "player.h"
 
-// Initialize enemies
+// Update all enemies (movement and combat)
+void update_enemies() {
+    move_enemies();
+    check_combat();
+}
+
+// Initialize enemies on current floor
 void init_enemies() {
     Floor* floor = current_floor_ptr();
+    
+    // Clear existing enemies
     for (int i = 0; i < MAX_ENEMIES; i++) {
-        // Pick a random room (not the first one where player starts)
-        int room_idx = random_range(1, floor->num_rooms - 1);
-        Room* room = &floor->rooms[room_idx];
+        floor->enemies[i].active = 0;
+    }
+    
+    // Place enemies in rooms (except first room)
+    int num_enemies = min(3 + current_floor, MAX_ENEMIES);
+    int enemies_placed = 0;
+    
+    for (int i = 1; i < floor->num_rooms && enemies_placed < num_enemies; i++) {
+        Room* room = &floor->rooms[i];
         
-        // Place enemy randomly within the room
-        floor->enemies[i].x = random_range(room->x + 1, room->x + room->width - 2);
-        floor->enemies[i].y = random_range(room->y + 1, room->y + room->height - 2);
-        
-        // Set enemy type and stats based on floor level
-        EnemyType type = (EnemyType)(rand() % (current_floor == MAX_FLOORS - 1 ? MAX_ENEMY_TYPES : MAX_ENEMY_TYPES - 1));
-        floor->enemies[i].type = type;
-        
-        switch(type) {
-            case ENEMY_BASIC:
-                strcpy(floor->enemies[i].name, "Goblin");
-                floor->enemies[i].symbol = 'g';
-                floor->enemies[i].health = 30 + current_floor * 10;
-                floor->enemies[i].max_health = floor->enemies[i].health;
-                floor->enemies[i].power = 5 + current_floor * 2;
-                floor->enemies[i].defense = 2 + current_floor;
-                floor->enemies[i].speed = 1;
-                floor->enemies[i].range = 1;
-                floor->enemies[i].exp_value = 20 + current_floor * 5;
-                break;
-                
-            case ENEMY_FAST:
-                strcpy(floor->enemies[i].name, "Wolf");
-                floor->enemies[i].symbol = 'w';
-                floor->enemies[i].health = 20 + current_floor * 8;
-                floor->enemies[i].max_health = floor->enemies[i].health;
-                floor->enemies[i].power = 4 + current_floor * 2;
-                floor->enemies[i].defense = 1 + current_floor;
-                floor->enemies[i].speed = 2;
-                floor->enemies[i].range = 1;
-                floor->enemies[i].exp_value = 25 + current_floor * 6;
-                break;
-                
-            case ENEMY_RANGED:
-                strcpy(floor->enemies[i].name, "Archer");
-                floor->enemies[i].symbol = 'a';
-                floor->enemies[i].health = 25 + current_floor * 7;
-                floor->enemies[i].max_health = floor->enemies[i].health;
-                floor->enemies[i].power = 6 + current_floor * 2;
-                floor->enemies[i].defense = 1 + current_floor;
-                floor->enemies[i].speed = 1;
-                floor->enemies[i].range = 3;
-                floor->enemies[i].exp_value = 30 + current_floor * 7;
-                break;
-                
-            case ENEMY_BOSS:
-                strcpy(floor->enemies[i].name, "Dragon");
-                floor->enemies[i].symbol = 'D';
-                floor->enemies[i].health = 100 + current_floor * 20;
-                floor->enemies[i].max_health = floor->enemies[i].health;
-                floor->enemies[i].power = 15 + current_floor * 3;
-                floor->enemies[i].defense = 5 + current_floor * 2;
-                floor->enemies[i].speed = 2;
-                floor->enemies[i].range = 2;
-                floor->enemies[i].exp_value = 100 + current_floor * 20;
-                break;
+        // 75% chance for each room to have an enemy
+        if (rand() % 4 < 3) {
+            Enemy enemy;
+            
+            // Determine enemy type
+            int r = rand() % 100;
+            if (r < 60) enemy.type = ENEMY_BASIC;     // 60%
+            else if (r < 80) enemy.type = ENEMY_FAST; // 20%
+            else if (r < 95) enemy.type = ENEMY_RANGED; // 15%
+            else enemy.type = ENEMY_BOSS;             // 5%
+            
+            // Set enemy properties based on type and floor level
+            switch(enemy.type) {
+                case ENEMY_BASIC:
+                    strcpy(enemy.name, "Goblin");
+                    enemy.symbol = 'g';
+                    enemy.health = 20 + current_floor * 5;
+                    enemy.power = 5 + current_floor;
+                    enemy.defense = 2 + current_floor / 2;
+                    enemy.speed = 1;
+                    enemy.range = 1;
+                    enemy.exp_value = 10 + current_floor * 2;
+                    break;
+                    
+                case ENEMY_FAST:
+                    strcpy(enemy.name, "Wolf");
+                    enemy.symbol = 'w';
+                    enemy.health = 15 + current_floor * 4;
+                    enemy.power = 4 + current_floor;
+                    enemy.defense = 1 + current_floor / 3;
+                    enemy.speed = 2;
+                    enemy.range = 1;
+                    enemy.exp_value = 15 + current_floor * 3;
+                    break;
+                    
+                case ENEMY_RANGED:
+                    strcpy(enemy.name, "Archer");
+                    enemy.symbol = 'a';
+                    enemy.health = 12 + current_floor * 3;
+                    enemy.power = 6 + current_floor * 2;
+                    enemy.defense = 1 + current_floor / 4;
+                    enemy.speed = 1;
+                    enemy.range = 4;
+                    enemy.exp_value = 20 + current_floor * 4;
+                    break;
+                    
+                case ENEMY_BOSS:
+                    strcpy(enemy.name, "Ogre");
+                    enemy.symbol = 'O';
+                    enemy.health = 50 + current_floor * 10;
+                    enemy.power = 10 + current_floor * 2;
+                    enemy.defense = 5 + current_floor;
+                    enemy.speed = 1;
+                    enemy.range = 2;
+                    enemy.exp_value = 50 + current_floor * 10;
+                    break;
+            }
+            
+            enemy.max_health = enemy.health;
+            enemy.active = 1;
+            
+            // Place enemy in room
+            enemy.x = room->x + 1 + rand() % (room->width - 2);
+            enemy.y = room->y + 1 + rand() % (room->height - 2);
+            
+            // Add to floor's enemy list
+            for (int j = 0; j < MAX_ENEMIES; j++) {
+                if (!floor->enemies[j].active) {
+                    floor->enemies[j] = enemy;
+                    enemies_placed++;
+                    break;
+                }
+            }
         }
-        
-        floor->enemies[i].active = 1;
     }
 }
 
-// Move enemies based on their type and speed
+// Move enemies
 void move_enemies() {
     Floor* floor = current_floor_ptr();
+    
     for (int i = 0; i < MAX_ENEMIES; i++) {
-        if (!floor->enemies[i].active) continue;
-        
         Enemy* enemy = &floor->enemies[i];
-        int moves = enemy->speed;  // Fast enemies move multiple times
+        if (!enemy->active) continue;
         
-        while (moves > 0) {
+        // Calculate distance to player
+        int dx = player.x - enemy->x;
+        int dy = player.y - enemy->y;
+        int dist = (int)sqrt(dx*dx + dy*dy);
+        
+        // If player is in range, try to attack
+        if (dist <= enemy->range) {
+            // Attack player
+            int damage = max(0, enemy->power - player.defense);
+            player.health -= damage;
+            
+            if (damage > 0) {
+                add_message("%s hits you for %d damage!", 
+                           enemy->name, damage);
+            } else {
+                add_message("%s's attack was blocked!", 
+                           enemy->name);
+            }
+            continue;
+        }
+        
+        // If player is visible, move toward them
+        if (dist < VIEW_RADIUS) {
+            // Try to move closer to player
             int new_x = enemy->x;
             int new_y = enemy->y;
             
-            // Ranged enemies try to maintain distance
-            if (enemy->type == ENEMY_RANGED) {
-                int dx = player.x - enemy->x;
-                int dy = player.y - enemy->y;
-                int dist = (int)sqrt(dx*dx + dy*dy);
-                
-                if (dist < enemy->range) {
-                    // Move away from player
-                    new_x = enemy->x - (dx > 0 ? 1 : -1);
-                    new_y = enemy->y - (dy > 0 ? 1 : -1);
-                } else if (dist > enemy->range + 1) {
-                    // Move toward player
-                    new_x = enemy->x + (dx > 0 ? 1 : -1);
-                    new_y = enemy->y + (dy > 0 ? 1 : -1);
-                }
+            if (abs(dx) > abs(dy)) {
+                new_x += (dx > 0) ? 1 : -1;
             } else {
-                // Other enemies move toward player
-                int dx = player.x - enemy->x;
-                int dy = player.y - enemy->y;
-                
-                if (abs(dx) > abs(dy)) {
-                    new_x += (dx > 0) ? 1 : -1;
-                } else {
-                    new_y += (dy > 0) ? 1 : -1;
-                }
+                new_y += (dy > 0) ? 1 : -1;
             }
             
             // Check if new position is valid
-            if (new_x > 0 && new_x < MAP_WIDTH-1 && 
-                new_y > 0 && new_y < MAP_HEIGHT-1 && 
-                floor->map[new_y][new_x] != '#' && 
-                !(new_x == player.x && new_y == player.y)) {
+            if (new_x > 0 && new_x < MAP_WIDTH-1 &&
+                new_y > 0 && new_y < MAP_HEIGHT-1 &&
+                floor->map[new_y][new_x] == '.') {
                 
-                // Check for collision with other enemies
+                // Check for collisions with other enemies
                 int collision = 0;
                 for (int j = 0; j < MAX_ENEMIES; j++) {
-                    if (j != i && floor->enemies[j].active &&
-                        new_x == floor->enemies[j].x && 
-                        new_y == floor->enemies[j].y) {
+                    if (i != j && floor->enemies[j].active &&
+                        floor->enemies[j].x == new_x &&
+                        floor->enemies[j].y == new_y) {
                         collision = 1;
                         break;
                     }
@@ -134,8 +164,59 @@ void move_enemies() {
                     enemy->y = new_y;
                 }
             }
-            
-            moves--;
+        }
+    }
+}
+
+// Handle enemy death
+void kill_enemy(Enemy* enemy) {
+    Floor* floor = current_floor_ptr();
+    
+    // Mark enemy as inactive
+    enemy->active = 0;
+    
+    // Add experience to player
+    player.exp += enemy->exp_value;
+    add_message("Defeated %s! Gained %d experience.", 
+               enemy->name, enemy->exp_value);
+    
+    // Check for level up
+    if (player.exp >= player.exp_next) {
+        level_up();
+    }
+    
+    // Chance to drop item
+    if (rand() % 100 < 30) {  // 30% chance
+        for (int j = 0; j < MAX_ITEMS; j++) {
+            if (!floor->items[j].active) {
+                floor->items[j] = create_random_item(current_floor);
+                floor->items[j].x = enemy->x;
+                floor->items[j].y = enemy->y;
+                floor->items[j].active = 1;
+                add_message("%s dropped %s!", 
+                           enemy->name, floor->items[j].name);
+                break;
+            }
+        }
+    }
+    
+    // Chance to drop gold
+    if (rand() % 100 < 50) {  // 50% chance
+        int gold = 5 + rand() % (10 + current_floor * 5);
+        for (int j = 0; j < MAX_ITEMS; j++) {
+            if (!floor->items[j].active) {
+                floor->items[j].type = ITEM_GOLD;
+                floor->items[j].value = gold;
+                floor->items[j].x = enemy->x;
+                floor->items[j].y = enemy->y;
+                floor->items[j].active = 1;
+                floor->items[j].symbol = '$';
+                snprintf(floor->items[j].name, MAX_NAME_LEN,
+                        "%d Gold", gold);
+                add_message("%s dropped %d gold!", 
+                           enemy->name, gold);
+                break;
+            }
         }
     }
 }
@@ -182,10 +263,10 @@ void check_combat() {
                             apply_status_effect(STATUS_POISON, 3, enemy_damage/3);
                             break;
                         case 1:
-                            apply_status_effect(STATUS_BURNING, 3, enemy_damage/3);
+                            apply_status_effect(STATUS_BURN, 3, enemy_damage/3);
                             break;
                         case 2:
-                            apply_status_effect(STATUS_FROZEN, 3, 2);
+                            apply_status_effect(STATUS_FREEZE, 3, 2);
                             break;
                     }
                 }
@@ -198,29 +279,7 @@ void check_combat() {
                        enemy->name, player_damage, enemy_damage);
             
             if (enemy->health <= 0) {
-                enemy->active = 0;
-                player.exp += enemy->exp_value;
-                add_message("%s defeated! Gained %d experience.", 
-                           enemy->name, enemy->exp_value);
-                
-                // Drop loot
-                if (rand() % 100 < 30) {  // 30% chance to drop item
-                    for (int j = 0; j < MAX_ITEMS; j++) {
-                        if (!floor->items[j].active) {
-                            floor->items[j] = generate_item(current_floor);
-                            floor->items[j].x = enemy->x;
-                            floor->items[j].y = enemy->y;
-                            floor->items[j].active = 1;
-                            add_message("%s dropped %s!", 
-                                      enemy->name, floor->items[j].name);
-                            break;
-                        }
-                    }
-                }
-                
-                if (player.exp >= player.exp_next) {
-                    level_up();
-                }
+                kill_enemy(enemy);
             }
         }
     }

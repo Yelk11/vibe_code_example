@@ -67,39 +67,26 @@ void move_player(char input) {
         return;
     }
     
-    // Check for locked door
-    if (floor->map[new_y][new_x] == TERRAIN_LOCKED_DOOR) {
-        // Find the door
-        Door* target_door = NULL;
-        for (int i = 0; i < floor->num_doors; i++) {
-            if (floor->doors[i].x == new_x && floor->doors[i].y == new_y) {
-                target_door = &floor->doors[i];
-                break;
+    // Check for locked stairs
+    if (floor->map[new_y][new_x] == TERRAIN_LOCKED_STAIRS) {
+        // Check inventory for floor key
+        for (int i = 0; i < player.num_items; i++) {
+            if (player.inventory[i].type == ITEM_KEY &&
+                player.inventory[i].key_id == current_floor + 1) {
+                // Unlock the stairs
+                floor->map[new_y][new_x] = '>';
+                add_message("You unlock the stairs with %s!", player.inventory[i].name);
+                remove_from_inventory(i);
+                floor->has_floor_key = 1;
+                return;
             }
         }
-        
-        if (target_door && target_door->is_locked) {
-            // Check inventory for matching key
-            for (int i = 0; i < player.num_items; i++) {
-                if (player.inventory[i].type == ITEM_KEY &&
-                    player.inventory[i].key_id == target_door->key_id &&
-                    player.inventory[i].target_floor == current_floor) {
-                    // Unlock the door
-                    target_door->is_locked = 0;
-                    floor->map[new_y][new_x] = TERRAIN_DOOR;
-                    add_message("You unlock the door with %s!", player.inventory[i].name);
-                    remove_from_inventory(i);
-                    return;
-                }
-            }
-            add_message("The door is locked. You need a key to open it.");
-            return;
-        }
+        add_message("The stairs are locked. You need to find the floor key.");
+        return;
     }
     
     // Check if new position is walkable
-    if (floor->map[new_y][new_x] == TERRAIN_WALL ||
-        floor->map[new_y][new_x] == TERRAIN_LOCKED_DOOR) {
+    if (floor->map[new_y][new_x] == TERRAIN_WALL) {
         return;
     }
     
@@ -224,7 +211,7 @@ void handle_inventory() {
             // Process command
             switch (cmd) {
                 case 'u':
-                    use_item(index);
+                    use_item(&player.inventory[index]);
                     break;
                 case 'd':
                     drop_item(index);
@@ -262,38 +249,46 @@ void remove_from_inventory(int index) {
 }
 
 // Use an item from inventory
-void use_item(int index) {
-    Item* item = &player.inventory[index];
-    int used = 0;
+void use_item(Item* item) {
+    if (!item->active) return;
     
     switch (item->type) {
-        case ITEM_POTION:
-            player.health += item->value;
-            if (player.health > player.max_health) {
-                player.health = player.max_health;
-            }
-            add_message("Drank potion. Health restored to %d", player.health);
-            used = 1;
+        case ITEM_WEAPON:
+            equip_weapon(*item);
+            add_message("Equipped %s", item->name);
             break;
             
-        case ITEM_FOOD:
-            player.health += item->value / 2;
-            if (player.health > player.max_health) {
-                player.health = player.max_health;
-            }
-            add_message("Ate food. Health restored to %d", player.health);
-            used = 1;
+        case ITEM_ARMOR:
+            equip_armor(*item);
+            add_message("Equipped %s", item->name);
+            break;
+            
+        case ITEM_POTION:
+            player.health = min(player.health + item->power, player.max_health);
+            add_message("Used potion, restored %d health", item->power);
+            item->active = 0;
             break;
             
         case ITEM_SCROLL:
-            // Add scroll effects here
-            add_message("Read scroll. Nothing happens.");
-            used = 1;
+            add_message("Used scroll, gained temporary power!");
+            item->active = 0;
             break;
-    }
-    
-    if (used) {
-        remove_from_inventory(index);
+            
+        case ITEM_FOOD:
+            player.health = min(player.health + item->power, player.max_health);
+            add_message("Ate food, restored %d health", item->power);
+            item->active = 0;
+            break;
+            
+        case ITEM_GOLD:
+            player.gold += item->value;
+            add_message("Added %d gold to wallet", item->value);
+            item->active = 0;
+            break;
+            
+        case ITEM_KEY:
+            add_message("This key might open something nearby...");
+            break;
     }
 }
 
@@ -377,6 +372,60 @@ void equip_item(int index) {
     remove_from_inventory(index);
     
     add_message("Equipped %s", new_equipment->name);
+}
+
+// Equip a weapon
+void equip_weapon(Item weapon) {
+    // Unequip current weapon if any
+    if (player.equipment[SLOT_WEAPON]) {
+        // Add current weapon to inventory if possible
+        if (player.num_items < INVENTORY_SIZE) {
+            player.inventory[player.num_items++] = *player.equipment[SLOT_WEAPON];
+            free(player.equipment[SLOT_WEAPON]);
+        } else {
+            add_message("Inventory full! Cannot unequip current weapon.");
+            return;
+        }
+    }
+    
+    // Create new weapon item
+    Item* new_weapon = (Item*)malloc(sizeof(Item));
+    if (!new_weapon) {
+        add_message("Failed to allocate memory for weapon!");
+        return;
+    }
+    *new_weapon = weapon;
+    
+    // Equip new weapon
+    player.equipment[SLOT_WEAPON] = new_weapon;
+    add_message("Equipped %s", weapon.name);
+}
+
+// Equip armor
+void equip_armor(Item armor) {
+    // Unequip current armor if any
+    if (player.equipment[SLOT_ARMOR]) {
+        // Add current armor to inventory if possible
+        if (player.num_items < INVENTORY_SIZE) {
+            player.inventory[player.num_items++] = *player.equipment[SLOT_ARMOR];
+            free(player.equipment[SLOT_ARMOR]);
+        } else {
+            add_message("Inventory full! Cannot unequip current armor.");
+            return;
+        }
+    }
+    
+    // Create new armor item
+    Item* new_armor = (Item*)malloc(sizeof(Item));
+    if (!new_armor) {
+        add_message("Failed to allocate memory for armor!");
+        return;
+    }
+    *new_armor = armor;
+    
+    // Equip new armor
+    player.equipment[SLOT_ARMOR] = new_armor;
+    add_message("Equipped %s", armor.name);
 }
 
 // Add ability to player
@@ -485,7 +534,7 @@ void use_ability(int index) {
             
             if (target) {
                 target->health -= ability->power;
-                apply_status_effect(STATUS_BURNING, 3, ability->power / 3);
+                apply_status_effect(STATUS_BURN, 3, ability->power / 3);
                 add_message("Fireball hits %s for %d damage!", 
                            target->name, ability->power);
                 
@@ -531,7 +580,7 @@ void use_ability(int index) {
         }
             
         case ABILITY_SHIELD:
-            apply_status_effect(STATUS_BLESSED, 5, ability->power);
+            apply_status_effect(STATUS_STUN, 5, ability->power);
             break;
             
         case ABILITY_RAGE:
@@ -582,9 +631,9 @@ void apply_status_effect(StatusType type, int duration, int power) {
     // Apply resistance for damage effects
     if (type == STATUS_POISON) {
         power = power * (100 - player.poison_resist) / 100;
-    } else if (type == STATUS_BURNING) {
+    } else if (type == STATUS_BURN) {
         power = power * (100 - player.fire_resist) / 100;
-    } else if (type == STATUS_FROZEN) {
+    } else if (type == STATUS_FREEZE) {
         power = power * (100 - player.ice_resist) / 100;
     }
     
@@ -596,17 +645,20 @@ void apply_status_effect(StatusType type, int duration, int power) {
         case STATUS_POISON:
             add_message("You are poisoned!");
             break;
-        case STATUS_BURNING:
+        case STATUS_BURN:
             add_message("You are burning!");
             break;
-        case STATUS_FROZEN:
+        case STATUS_FREEZE:
             add_message("You are frozen!");
             break;
-        case STATUS_BLESSED:
-            add_message("You feel blessed!");
+        case STATUS_STUN:
+            add_message("You are stunned!");
             break;
-        case STATUS_CURSED:
-            add_message("You feel cursed!");
+        case STATUS_BLIND:
+            add_message("You are blinded!");
+            break;
+        case STATUS_BERSERK:
+            add_message("You are berserk!");
             break;
         default:
             break;
@@ -624,17 +676,32 @@ void update_status_effects() {
                 add_message("Poison deals %d damage!", player.status[i].power);
                 break;
                 
-            case STATUS_BURNING:
+            case STATUS_BURN:
                 player.health -= player.status[i].power;
-                add_message("Burning deals %d damage!", player.status[i].power);
+                player.defense -= player.status[i].power / 2;
+                add_message("Burning deals %d damage and reduces defense!", player.status[i].power);
                 break;
                 
-            case STATUS_BLESSED:
+            case STATUS_FREEZE:
+                // Reduce speed/actions
+                add_message("You are slowed by the freeze effect!");
+                break;
+                
+            case STATUS_STUN:
+                // Skip turn
+                add_message("You are stunned and cannot act!");
+                break;
+                
+            case STATUS_BLIND:
+                // Reduce accuracy
+                add_message("Your vision is impaired!");
+                break;
+                
+            case STATUS_BERSERK:
+                // Increase damage but reduce defense
                 player.power += player.status[i].power;
-                break;
-                
-            case STATUS_CURSED:
-                player.defense -= player.status[i].power;
+                player.defense -= player.status[i].power / 2;
+                add_message("Berserk increases power but reduces defense!");
                 break;
                 
             default:
@@ -644,22 +711,90 @@ void update_status_effects() {
         player.status[i].duration--;
         if (player.status[i].duration <= 0) {
             // Remove effect
-            if (player.status[i].type == STATUS_BLESSED) {
-                player.power -= player.status[i].power;
-            } else if (player.status[i].type == STATUS_CURSED) {
-                player.defense += player.status[i].power;
+            switch(player.status[i].type) {
+                case STATUS_BURN:
+                    player.defense += player.status[i].power / 2;
+                    break;
+                case STATUS_BERSERK:
+                    player.power -= player.status[i].power;
+                    player.defense += player.status[i].power / 2;
+                    break;
+                default:
+                    break;
             }
             
             add_message("Status effect %s wore off!", 
                        player.status[i].type == STATUS_POISON ? "Poison" :
-                       player.status[i].type == STATUS_BURNING ? "Burning" :
-                       player.status[i].type == STATUS_FROZEN ? "Frozen" :
-                       player.status[i].type == STATUS_BLESSED ? "Blessed" :
-                       player.status[i].type == STATUS_CURSED ? "Cursed" : "Unknown");
+                       player.status[i].type == STATUS_BURN ? "Burn" :
+                       player.status[i].type == STATUS_FREEZE ? "Freeze" :
+                       player.status[i].type == STATUS_STUN ? "Stun" :
+                       player.status[i].type == STATUS_BLIND ? "Blind" :
+                       player.status[i].type == STATUS_BERSERK ? "Berserk" : "Unknown");
             
             player.status[i].type = STATUS_NONE;
             player.status[i].duration = 0;
             player.status[i].power = 0;
         }
     }
+}
+
+// Modify check_items to update floor key status
+void check_items() {
+    Floor* floor = current_floor_ptr();
+    for (int i = 0; i < MAX_ITEMS; i++) {
+        if (!floor->items[i].active) continue;
+        
+        if (player.x == floor->items[i].x && player.y == floor->items[i].y) {
+            Item* item = &floor->items[i];
+            
+            if (item->type == ITEM_KEY && item->key_id == current_floor + 1) {
+                // Found the floor key
+                if (add_to_inventory(*item)) {
+                    add_message("Found %s! This will unlock the way forward.", item->name);
+                    floor->items[i].active = 0;
+                } else {
+                    add_message("Inventory full! Cannot pick up the floor key.");
+                }
+            } else if (item->type == ITEM_GOLD) {
+                player.gold += item->value;
+                add_message("Picked up %d gold!", item->value);
+                floor->items[i].active = 0;
+            } else {
+                if (add_to_inventory(floor->items[i])) {
+                    add_message("Picked up %s", item->name);
+                    floor->items[i].active = 0;
+                } else {
+                    add_message("Inventory full!");
+                }
+            }
+        }
+    }
+}
+
+// View inventory
+void view_inventory() {
+    system("clear");
+    printf("\n=== Inventory (%d/%d) ===\n", player.num_items, INVENTORY_SIZE);
+    
+    // Show equipped items
+    printf("\nEquipped:\n");
+    printf("Weapon: %s\n", player.equipment[SLOT_WEAPON] ? player.equipment[SLOT_WEAPON]->name : "None");
+    printf("Armor: %s\n", player.equipment[SLOT_ARMOR] ? player.equipment[SLOT_ARMOR]->name : "None");
+    printf("Ring: %s\n", player.equipment[SLOT_RING] ? player.equipment[SLOT_RING]->name : "None");
+    printf("Amulet: %s\n", player.equipment[SLOT_AMULET] ? player.equipment[SLOT_AMULET]->name : "None");
+    
+    // Show inventory items
+    printf("\nItems:\n");
+    for (int i = 0; i < player.num_items; i++) {
+        printf("%d) %s", i + 1, player.inventory[i].name);
+        if (player.inventory[i].type == ITEM_WEAPON || player.inventory[i].type == ITEM_ARMOR) {
+            printf(" (Power: %d, Durability: %d)", 
+                   player.inventory[i].power, 
+                   player.inventory[i].durability);
+        }
+        printf("\n");
+    }
+    
+    printf("\nPress any key to continue...");
+    getch();
 } 
