@@ -9,27 +9,26 @@
 
 // Initialize game state
 void init_game() {
-    // Initialize random seed
+    // Initialize random number generator
     srand(time(NULL));
     
     // Initialize UI
     init_ui();
     
-    // Initialize player
-    init_player();
-    
-    // Initialize first floor
+    // Initialize game state
     current_floor = 0;
-    init_floor(&floors[current_floor]);
-    
-    // Place player in first room
-    Room* first_room = &floors[current_floor].rooms[0];
-    player.x = first_room->x + first_room->width / 2;
-    player.y = first_room->y + first_room->height / 2;
+    game_turn = 0;
     
     // Initialize message log
     message_log.num_messages = 0;
     
+    // Initialize player
+    init_player();
+    
+    // Initialize first floor
+    init_floor(current_floor);
+    
+    // Add welcome message
     add_message("Welcome to the dungeon!");
 }
 

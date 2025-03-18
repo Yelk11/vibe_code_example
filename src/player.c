@@ -113,30 +113,57 @@ void move_player(int dx, int dy) {
     // Check for items at new position
     check_items();
     
-    // Handle stairs
-    if (floor->map[new_y][new_x] == '<') {
-        if (current_floor > 0) {
-            current_floor--;
-            floor = current_floor_ptr();
-            init_floor(floor);  // Initialize the new floor
-            player.x = floor->down_stairs_x;
-            player.y = floor->down_stairs_y;
-            update_fov();  // Update FOV after changing floors
-            init_enemies();  // Clear enemies array
-            spawn_floor_enemies();  // Spawn new enemies
-            add_message("You climb up the stairs to floor %d", current_floor + 1);
-        }
-    } else if (floor->map[new_y][new_x] == '>') {
-        if (current_floor < MAX_FLOORS - 1) {
-            current_floor++;
-            floor = current_floor_ptr();
-            init_floor(floor);  // Initialize the new floor
-            player.x = floor->up_stairs_x;
-            player.y = floor->up_stairs_y;
-            update_fov();  // Update FOV after changing floors
-            init_enemies();  // Clear enemies array
-            spawn_floor_enemies();  // Spawn new enemies
-            add_message("You climb down the stairs to floor %d", current_floor + 1);
+    // Handle stairs movement
+    if (new_x == player.x && new_y == player.y) {
+        char current_tile = current_floor_ptr()->map[new_y][new_x];
+        
+        if (current_tile == '<') {  // Up stairs
+            if (current_floor > 0) {
+                current_floor--;
+                init_floor(current_floor);
+                // Find up stairs on new floor
+                for (int y = 0; y < MAP_HEIGHT; y++) {
+                    for (int x = 0; x < MAP_WIDTH; x++) {
+                        if (current_floor_ptr()->map[y][x] == '>') {
+                            player.x = x;
+                            player.y = y;
+                            break;
+                        }
+                    }
+                }
+                add_message("You climb up the stairs.");
+            }
+        } else if (current_tile == '>') {  // Down stairs (unlocked)
+            if (current_floor < MAX_FLOORS - 1) {
+                current_floor++;
+                init_floor(current_floor);
+                // Find down stairs on new floor
+                for (int y = 0; y < MAP_HEIGHT; y++) {
+                    for (int x = 0; x < MAP_WIDTH; x++) {
+                        if (current_floor_ptr()->map[y][x] == '<') {
+                            player.x = x;
+                            player.y = y;
+                            break;
+                        }
+                    }
+                }
+                add_message("You climb down the stairs.");
+            }
+        } else if (current_tile == '%') {  // Locked stairs
+            // Check inventory for floor key
+            for (int i = 0; i < player.num_items; i++) {
+                if (player.inventory[i].type == ITEM_KEY &&
+                    player.inventory[i].key_id == current_floor + 1) {
+                    // Unlock the stairs
+                    current_floor_ptr()->map[new_y][new_x] = '>';
+                    add_message("You unlock the stairs with %s!", player.inventory[i].name);
+                    remove_from_inventory(i);
+                    current_floor_ptr()->has_floor_key = 1;
+                    return;
+                }
+            }
+            add_message("The stairs are locked. You need to find the floor key.");
+            return;
         }
     }
     

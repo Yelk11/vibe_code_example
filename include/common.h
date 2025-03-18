@@ -249,6 +249,7 @@ struct Floor {
     TerrainType terrain[MAP_HEIGHT][MAP_WIDTH];
     int has_floor_key;  // Whether the floor key has been collected
     int has_visited;    // Whether the player has visited this floor before
+    int has_stairs;     // Whether stairs have been placed
 };
 
 struct MessageLog {

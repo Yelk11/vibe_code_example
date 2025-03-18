@@ -161,9 +161,9 @@ void draw() {
             attroff(COLOR_PAIR(7));
         } else if (y > start_y + 6) {
             int msg_index = y - (start_y + 7);
-            if (msg_index < message_log.num_messages && strlen(message_log.messages[msg_index]) > 0) {
+            if (msg_index < message_log.num_messages && strlen(message_log.messages[message_log.num_messages - 1 - msg_index]) > 0) {
                 attron(COLOR_PAIR(7));
-                mvprintw(y - start_y, map_width + 2, "%s", message_log.messages[msg_index]);
+                mvprintw(y - start_y, map_width + 2, "%s", message_log.messages[message_log.num_messages - 1 - msg_index]);
                 attroff(COLOR_PAIR(7));
             }
         }

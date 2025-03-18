@@ -292,154 +292,66 @@ void create_room_in_map(Floor* floor, Room* room) {
 }
 
 // Initialize a floor
-void init_floor(Floor* floor) {
-    // Clear the floor
-    memset(floor, 0, sizeof(Floor));
+void init_floor(int floor_num) {
+    Floor* floor = &floors[floor_num];
+    current_floor = floor_num;
     
-    // Fill with walls
-    for (int y = 0; y < MAP_HEIGHT; y++) {
-        for (int x = 0; x < MAP_WIDTH; x++) {
-            floor->map[y][x] = '#';
-            floor->visible[y][x] = 0;
-            floor->discovered[y][x] = 0;
-            floor->terrain[y][x] = TERRAIN_WALL;
-        }
+    // Generate new floor if not visited before
+    if (!floor->has_visited) {
+        generate_floor(floor);
+        floor->has_visited = 1;
     }
     
-    // If this floor has been visited before, restore its state
-    if (floor->has_visited) {
-        // Restore the map, items, and doors
-        // Note: We don't restore enemies as they should respawn
-        for (int y = 0; y < MAP_HEIGHT; y++) {
-            for (int x = 0; x < MAP_WIDTH; x++) {
-                if (floor->discovered[y][x] == '.' || floor->discovered[y][x] == '+' || 
-                    floor->discovered[y][x] == '<' || floor->discovered[y][x] == '>' ||
-                    floor->discovered[y][x] == TERRAIN_LOCKED_DOOR || 
-                    floor->discovered[y][x] == TERRAIN_LOCKED_STAIRS) {
-                    floor->map[y][x] = floor->discovered[y][x];
-                    if (floor->map[y][x] == '.') {
-                        floor->terrain[y][x] = TERRAIN_FLOOR;
-                    }
-                }
-            }
-        }
+    // Place stairs if not already placed
+    if (!floor->has_stairs) {
+        // Place up stairs in a random room
+        Room* up_room = &floor->rooms[rand() % floor->num_rooms];
+        floor->up_stairs_x = up_room->x + 1 + rand() % (up_room->width - 2);
+        floor->up_stairs_y = up_room->y + 1 + rand() % (up_room->height - 2);
+        floor->map[floor->up_stairs_y][floor->up_stairs_x] = '<';
         
-        // Mark stairs as unlocked for previously visited floors
-        if (floor->down_stairs_x > 0 && floor->down_stairs_y > 0) {
-            floor->map[floor->down_stairs_y][floor->down_stairs_x] = '>';
+        // Place down stairs in the last room (or second room if first is only room)
+        Room* down_room = &floor->rooms[floor->num_rooms - 1];
+        if (floor->num_rooms == 1) {
+            down_room = &floor->rooms[0];
         }
-        if (floor->up_stairs_x > 0 && floor->up_stairs_y > 0) {
-            floor->map[floor->up_stairs_y][floor->up_stairs_x] = '<';
-        }
+        floor->down_stairs_x = down_room->x + 1 + rand() % (down_room->width - 2);
+        floor->down_stairs_y = down_room->y + 1 + rand() % (down_room->height - 2);
+        // Place locked stairs initially
+        floor->map[floor->down_stairs_y][floor->down_stairs_x] = '%';
         
-        // Restore doors
-        for (int i = 0; i < floor->num_doors; i++) {
-            Door* door = &floor->doors[i];
-            if (!door->is_locked) {
-                floor->map[door->y][door->x] = '+';
-            }
-        }
+        // Place floor key in a different room than stairs
+        Room* key_room;
+        do {
+            key_room = &floor->rooms[rand() % floor->num_rooms];
+        } while (key_room == up_room || key_room == down_room);
         
-        return;  // Skip generating new rooms for visited floors
-    }
-    
-    // Generate rooms for new floors
-    int attempts = 0;
-    int max_attempts = 100;
-    
-    while (floor->num_rooms < MAX_ROOMS && attempts < max_attempts) {
-        Room new_room = generate_room();
-        
-        // Check if room overlaps with existing rooms
-        int overlaps = 0;
-        for (int i = 0; i < floor->num_rooms; i++) {
-            if (rooms_overlap(&new_room, &floor->rooms[i], 1)) {
-                overlaps = 1;
+        // Add floor key to items array
+        for (int i = 0; i < MAX_ITEMS; i++) {
+            if (!floor->items[i].active) {
+                floor->items[i] = (Item){
+                    .name = "Floor Key",
+                    .description = "A key that unlocks the way forward",
+                    .x = key_room->x + 1 + rand() % (key_room->width - 2),
+                    .y = key_room->y + 1 + rand() % (key_room->height - 2),
+                    .symbol = 'K',
+                    .active = 1,
+                    .type = ITEM_KEY,
+                    .value = 200,
+                    .key_id = current_floor + 1,  // Key ID matches next floor
+                    .target_floor = current_floor  // Used on current floor
+                };
+                strcpy(floor->items[i].name, "Floor Key");
+                strcpy(floor->items[i].description, "A key that unlocks the way forward");
                 break;
             }
         }
         
-        if (!overlaps) {
-            // Add room to floor
-            floor->rooms[floor->num_rooms++] = new_room;
-            
-            // Create room in map based on its type
-            create_room_in_map(floor, &new_room);
-        }
-        attempts++;
+        floor->has_stairs = 1;
     }
     
-    // Create tunnels between rooms
-    for (int i = 1; i < floor->num_rooms; i++) {
-        Room* current = &floor->rooms[i];
-        Room* previous = &floor->rooms[i - 1];
-        
-        // Create tunnel from center of previous room to center of current room
-        int prev_x = previous->x + previous->width / 2;
-        int prev_y = previous->y + previous->height / 2;
-        int curr_x = current->x + current->width / 2;
-        int curr_y = current->y + current->height / 2;
-        
-        create_tunnel(floor, prev_x, prev_y, curr_x, curr_y);
-    }
-    
-    floor->num_doors = 0;  // Initialize door count
-    
-    // Set player position in first room if this is floor 0
-    if (current_floor == 0) {
-        Room* first_room = &floor->rooms[0];
-        player.x = first_room->x + first_room->width / 2;
-        player.y = first_room->y + first_room->height / 2;
-    }
-    
-    // After generating basic rooms and connections
-    if (current_floor > 0) {  // Don't place locked doors on first floor
-        // Place 1-2 locked doors per floor
-        int num_locked_doors = random_range(1, 2);
-        for (int i = 0; i < num_locked_doors && floor->num_rooms > 2; i++) {
-            // Pick two random rooms that aren't the first room
-            int room1_idx = random_range(1, floor->num_rooms - 1);
-            int room2_idx = random_range(1, floor->num_rooms - 1);
-            if (room1_idx == room2_idx) continue;
-            
-            int key_id = current_floor * 100 + i;  // Generate unique key ID
-            place_locked_door(floor, &floor->rooms[room1_idx], &floor->rooms[room2_idx], key_id);
-            
-            // Place key in a room before the door
-            int key_room_idx = random_range(0, room1_idx);
-            place_key(floor, &floor->rooms[key_room_idx], key_id, current_floor);
-        }
-    }
-    
-    // Place stairs
-    if (current_floor > 0) {
-        int up_room_idx = random_range(0, floor->num_rooms - 1);
-        Room* up_room = &floor->rooms[up_room_idx];
-        place_stairs_in_room(up_room, &floor->up_stairs_x, &floor->up_stairs_y);
-        floor->map[floor->up_stairs_y][floor->up_stairs_x] = '<';
-    }
-    
-    if (current_floor < MAX_FLOORS - 1) {
-        int down_room_idx = floor->num_rooms - 1;
-        if (current_floor > 0 && down_room_idx == 0) {
-            down_room_idx = 1;
-        }
-        Room* down_room = &floor->rooms[down_room_idx];
-        place_stairs_in_room(down_room, &floor->down_stairs_x, &floor->down_stairs_y);
-        // Place locked stairs instead of normal stairs
-        floor->map[floor->down_stairs_y][floor->down_stairs_x] = TERRAIN_LOCKED_STAIRS;
-        
-        // Place floor key in a room that's not the stairs room
-        int key_room_idx;
-        do {
-            key_room_idx = random_range(0, floor->num_rooms - 1);
-        } while (key_room_idx == down_room_idx);
-        
-        place_floor_key(floor, &floor->rooms[key_room_idx]);
-    }
-    
-    // Mark this floor as visited
-    floor->has_visited = 1;
+    // Spawn enemies for this floor
+    spawn_floor_enemies();
 }
 
 // Calculate if a point is visible from the player's position
@@ -499,5 +411,79 @@ void update_fov() {
                 floor->discovered[y][x] = 1;
             }
         }
+    }
+}
+
+// Generate a new floor
+void generate_floor(Floor* floor) {
+    // Clear the floor
+    memset(floor, 0, sizeof(Floor));
+    
+    // Fill with walls
+    for (int y = 0; y < MAP_HEIGHT; y++) {
+        for (int x = 0; x < MAP_WIDTH; x++) {
+            floor->map[y][x] = '#';
+            floor->visible[y][x] = 0;
+            floor->discovered[y][x] = 0;
+            floor->terrain[y][x] = TERRAIN_WALL;
+        }
+    }
+    
+    // Generate rooms
+    int attempts = 0;
+    int max_attempts = 100;
+    
+    while (floor->num_rooms < MAX_ROOMS && attempts < max_attempts) {
+        Room new_room = generate_room();
+        
+        // Check if room overlaps with existing rooms
+        int overlaps = 0;
+        for (int i = 0; i < floor->num_rooms; i++) {
+            if (rooms_overlap(&new_room, &floor->rooms[i], 1)) {
+                overlaps = 1;
+                break;
+            }
+        }
+        
+        if (!overlaps) {
+            // Add room to floor
+            floor->rooms[floor->num_rooms++] = new_room;
+            
+            // Create room in map
+            for (int y = new_room.y; y < new_room.y + new_room.height; y++) {
+                for (int x = new_room.x; x < new_room.x + new_room.width; x++) {
+                    if (y == new_room.y || y == new_room.y + new_room.height - 1 ||
+                        x == new_room.x || x == new_room.x + new_room.width - 1) {
+                        floor->map[y][x] = '#';
+                        floor->terrain[y][x] = TERRAIN_WALL;
+                    } else {
+                        floor->map[y][x] = '.';
+                        floor->terrain[y][x] = TERRAIN_FLOOR;
+                    }
+                }
+            }
+        }
+        attempts++;
+    }
+    
+    // Create tunnels between rooms
+    for (int i = 1; i < floor->num_rooms; i++) {
+        Room* current = &floor->rooms[i];
+        Room* previous = &floor->rooms[i - 1];
+        
+        // Create tunnel from center of previous room to center of current room
+        int prev_x = previous->x + previous->width / 2;
+        int prev_y = previous->y + previous->height / 2;
+        int curr_x = current->x + current->width / 2;
+        int curr_y = current->y + current->height / 2;
+        
+        create_tunnel(floor, prev_x, prev_y, curr_x, curr_y);
+    }
+    
+    // Set player position in first room if this is floor 0
+    if (current_floor == 0) {
+        Room* first_room = &floor->rooms[0];
+        player.x = first_room->x + first_room->width / 2;
+        player.y = first_room->y + first_room->height / 2;
     }
 } 
