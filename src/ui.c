@@ -325,44 +325,44 @@ void view_inventory() {
     refresh();
 }
 
-// Save game state to file
+// Save game state
 void save_game(const char* filename) {
     FILE* file = fopen(filename, "wb");
-    if (!file) {
-        add_message("Failed to save game!");
+    if (file == NULL) {
+        add_message("Failed to save game");
         return;
     }
     
-    // Save game data
+    // Write game state
     fwrite(&player, sizeof(Player), 1, file);
     fwrite(&current_floor, sizeof(int), 1, file);
-    fwrite(floors, sizeof(Floor), MAX_FLOORS, file);
+    fwrite(floors, sizeof(Floor), MAX_FLOORS, file);  // This now includes has_visited flag
     fwrite(quests, sizeof(Quest), MAX_QUESTS, file);
     fwrite(&num_quests, sizeof(int), 1, file);
     fwrite(achievements, sizeof(Achievement), MAX_ACHIEVEMENTS, file);
     fwrite(&num_achievements, sizeof(int), 1, file);
     
     fclose(file);
-    add_message("Game saved successfully!");
+    add_message("Game saved successfully");
 }
 
-// Load game state from file
+// Load game state
 void load_game(const char* filename) {
     FILE* file = fopen(filename, "rb");
-    if (!file) {
-        add_message("Failed to load game!");
+    if (file == NULL) {
+        add_message("Failed to load game");
         return;
     }
     
-    // Load game data
+    // Read game state
     fread(&player, sizeof(Player), 1, file);
     fread(&current_floor, sizeof(int), 1, file);
-    fread(floors, sizeof(Floor), MAX_FLOORS, file);
+    fread(floors, sizeof(Floor), MAX_FLOORS, file);  // This now includes has_visited flag
     fread(quests, sizeof(Quest), MAX_QUESTS, file);
     fread(&num_quests, sizeof(int), 1, file);
     fread(achievements, sizeof(Achievement), MAX_ACHIEVEMENTS, file);
     fread(&num_achievements, sizeof(int), 1, file);
     
     fclose(file);
-    add_message("Game loaded successfully!");
+    add_message("Game loaded successfully");
 } 

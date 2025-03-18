@@ -271,6 +271,7 @@ struct Floor {
     int num_doors;         // Number of doors currently on floor
     TerrainType terrain[MAP_HEIGHT][MAP_WIDTH];
     int has_floor_key;  // Whether the floor key has been collected
+    int has_visited;    // Whether the player has visited this floor before
 };
 
 struct MessageLog {
