@@ -779,32 +779,4 @@ void check_items() {
             }
         }
     }
-}
-
-// View inventory
-void view_inventory() {
-    system("clear");
-    printf("\n=== Inventory (%d/%d) ===\n", player.num_items, INVENTORY_SIZE);
-    
-    // Show equipped items
-    printf("\nEquipped:\n");
-    printf("Weapon: %s\n", player.equipment[SLOT_WEAPON] ? player.equipment[SLOT_WEAPON]->name : "None");
-    printf("Armor: %s\n", player.equipment[SLOT_ARMOR] ? player.equipment[SLOT_ARMOR]->name : "None");
-    printf("Ring: %s\n", player.equipment[SLOT_RING] ? player.equipment[SLOT_RING]->name : "None");
-    printf("Amulet: %s\n", player.equipment[SLOT_AMULET] ? player.equipment[SLOT_AMULET]->name : "None");
-    
-    // Show inventory items
-    printf("\nItems:\n");
-    for (int i = 0; i < player.num_items; i++) {
-        printf("%d) %s", i + 1, player.inventory[i].name);
-        if (player.inventory[i].type == ITEM_WEAPON || player.inventory[i].type == ITEM_ARMOR) {
-            printf(" (Power: %d, Durability: %d)", 
-                   player.inventory[i].power, 
-                   player.inventory[i].durability);
-        }
-        printf("\n");
-    }
-    
-    printf("\nPress any key to continue...");
-    getch();
 } 

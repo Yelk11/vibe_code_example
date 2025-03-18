@@ -21,7 +21,7 @@
 #define MAX_ROOM_SIZE 10
 #define MAX_ENEMIES 5
 #define MAX_ITEMS 10
-#define MAX_FLOORS 5
+#define MAX_FLOORS 26
 #define INVENTORY_SIZE 20
 #define MAX_ENEMY_TYPES 4
 #define VIEW_RADIUS 8

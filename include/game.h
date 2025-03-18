@@ -33,7 +33,6 @@ void init_achievements(void);
 // Game systems update
 void update_enemies(void);
 void view_quests(void);
-void view_achievements(void);
 
 // Functions
 void handle_input(char input);

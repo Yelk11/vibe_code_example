@@ -35,6 +35,5 @@ void update_npc_positions(void);
 // Achievement functions
 void check_achievement_progress(void);
 void unlock_achievement(int achievement_id);
-void display_achievements(void);
 
 #endif // QUEST_H 

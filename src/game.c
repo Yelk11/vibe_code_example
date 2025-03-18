@@ -5,9 +5,7 @@
 #include "quest.h"
 #include <stdlib.h>
 #include <time.h>
-
-// Global game state
-GameState game_state;
+#include <ncurses.h>
 
 // Initialize game state
 void init_game() {
@@ -36,6 +34,50 @@ void init_game() {
     
     // Add initial message
     add_message("Welcome to the dungeon! Use WASD to move.");
+}
+
+// Show death screen and handle retry option
+void show_death_screen() {
+    int term_width, term_height;
+    get_terminal_size(&term_width, &term_height);
+    
+    // Clear screen
+    clear();
+    
+    // Draw death message
+    attron(COLOR_PAIR(1));  // Red color for death message
+    mvprintw(term_height/2 - 2, term_width/2 - 15, "YOU HAVE DIED!");
+    attroff(COLOR_PAIR(1));
+    
+    // Draw stats
+    attron(COLOR_PAIR(7));  // White color for stats
+    mvprintw(term_height/2, term_width/2 - 20, "Level: %d", player.level);
+    mvprintw(term_height/2 + 1, term_width/2 - 20, "Gold: %d", player.gold);
+    mvprintw(term_height/2 + 2, term_width/2 - 20, "Experience: %d", player.exp);
+    attroff(COLOR_PAIR(7));
+    
+    // Draw options
+    attron(COLOR_PAIR(3));  // Yellow color for options
+    mvprintw(term_height/2 + 4, term_width/2 - 20, "Press [R] to try again");
+    mvprintw(term_height/2 + 5, term_width/2 - 20, "Press [Q] to quit");
+    attroff(COLOR_PAIR(3));
+    
+    refresh();
+    
+    // Wait for input
+    char input;
+    while (1) {
+        input = get_input();
+        if (input == 'r' || input == 'R') {
+            // Reset game state
+            game_state = GAME_RUNNING;
+            init_game();  // Reinitialize the game
+            break;
+        } else if (input == 'q' || input == 'Q') {
+            game_state = GAME_OVER;
+            break;
+        }
+    }
 }
 
 // Main game loop
@@ -73,8 +115,7 @@ void game_loop() {
         
         // Check if player is dead
         if (player.health <= 0) {
-            add_message("You have died! Game Over.");
-            game_state = GAME_OVER;
+            show_death_screen();
         }
     }
     

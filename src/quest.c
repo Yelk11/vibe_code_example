@@ -442,8 +442,8 @@ void unlock_achievement(int achievement_id) {
     add_message("%s", ach->description);
 }
 
-// Display achievements
-void display_achievements() {
+// View achievements
+void view_achievements() {
     system("clear");
     printf("\n=== Achievements ===\n\n");
     
@@ -461,7 +461,7 @@ void display_achievements() {
         printf("\n");
     }
     
-    printf("\nPress any key to continue...");
+    printf("Press any key to continue...");
     getch();
 }
 
@@ -488,29 +488,6 @@ void view_quests() {
                        obj->current_amount,
                        obj->required_amount);
             }
-        }
-        printf("\n");
-    }
-    
-    printf("Press any key to continue...");
-    getch();
-}
-
-// View achievements
-void view_achievements() {
-    system("clear");
-    printf("\n=== Achievements ===\n\n");
-    
-    for (int i = 0; i < num_achievements; i++) {
-        Achievement* ach = &achievements[i];
-        printf("%s %s\n", 
-               ach->is_unlocked ? "[X]" : "[ ]",
-               ach->name);
-        printf("    %s\n", ach->description);
-        if (!ach->is_unlocked) {
-            printf("    Progress: %d/%d\n", 
-                   ach->current_amount, 
-                   ach->required_amount);
         }
         printf("\n");
     }

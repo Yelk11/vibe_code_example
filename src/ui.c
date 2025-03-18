@@ -238,25 +238,91 @@ void clear_messages() {
 
 // Render UI elements
 void render_ui() {
+    int term_width, term_height;
+    get_terminal_size(&term_width, &term_height);
+    
     // Draw status effects
-    printf("\nStatus Effects:\n");
+    attron(COLOR_PAIR(7));
+    mvprintw(term_height - 8, 0, "Status Effects:");
+    attroff(COLOR_PAIR(7));
+    
+    int y = term_height - 7;
     for (int i = 0; i < MAX_STATUS_EFFECTS; i++) {
         StatusEffect* effect = &player.status[i];
         if (effect->type != STATUS_NONE) {
-            printf("%s: %d turns\n", get_status_name(effect->type), effect->duration);
+            attron(COLOR_PAIR(3));  // Yellow for status effects
+            mvprintw(y++, 2, "%s: %d turns", get_status_name(effect->type), effect->duration);
+            attroff(COLOR_PAIR(3));
         }
     }
     
     // Draw abilities
-    printf("\nAbilities:\n");
+    y = term_height - 4;
+    attron(COLOR_PAIR(7));
+    mvprintw(y++, 0, "Abilities:");
+    attroff(COLOR_PAIR(7));
+    
     for (int i = 0; i < player.num_abilities; i++) {
         Ability* ability = &player.abilities[i];
-        printf("[%c] %s", ability->key, ability->name);
-        if (ability->current_cooldown > 0) {
-            printf(" (CD: %d)", ability->current_cooldown);
-        }
-        printf("\n");
+        attron(COLOR_PAIR(4));  // Blue for abilities
+        mvprintw(y++, 2, "%s (Power: %d, Cooldown: %d)", 
+                ability->name, ability->power, ability->current_cooldown);
+        attroff(COLOR_PAIR(4));
     }
+}
+
+// View inventory
+void view_inventory() {
+    int term_width, term_height;
+    get_terminal_size(&term_width, &term_height);
+    
+    // Clear screen
+    clear();
+    
+    // Draw inventory header
+    attron(COLOR_PAIR(7));
+    mvprintw(0, term_width/2 - 10, "INVENTORY");
+    attroff(COLOR_PAIR(7));
+    
+    // Draw inventory items
+    int y = 2;
+    for (int i = 0; i < MAX_INVENTORY; i++) {
+        Item* item = &player.inventory[i];
+        if (item->type != ITEM_NONE) {
+            attron(COLOR_PAIR(3));  // Yellow for items
+            mvprintw(y++, 2, "%d. %s", i + 1, item->name);
+            attroff(COLOR_PAIR(3));
+        }
+    }
+    
+    // Draw equipment
+    y += 2;
+    attron(COLOR_PAIR(7));
+    mvprintw(y++, 2, "EQUIPMENT");
+    attroff(COLOR_PAIR(7));
+    
+    attron(COLOR_PAIR(4));  // Blue for equipment
+    for (int i = 0; i < MAX_EQUIPMENT_SLOTS; i++) {
+        Item* item = player.equipment[i];
+        const char* slot_name;
+        switch (i) {
+            case SLOT_WEAPON: slot_name = "Weapon"; break;
+            case SLOT_ARMOR: slot_name = "Armor"; break;
+            case SLOT_RING: slot_name = "Ring"; break;
+            case SLOT_AMULET: slot_name = "Amulet"; break;
+            default: slot_name = "Unknown"; break;
+        }
+        mvprintw(y++, 4, "%s: %s", slot_name, item ? item->name : "None");
+    }
+    attroff(COLOR_PAIR(4));
+    
+    // Draw controls
+    y = term_height - 2;
+    attron(COLOR_PAIR(7));
+    mvprintw(y, 2, "Controls: [1-%d] Use/Equip | [d] Drop | [e] Equip | [u] Unequip | [q] Back", MAX_INVENTORY);
+    attroff(COLOR_PAIR(7));
+    
+    refresh();
 }
 
 // Save game state to file
