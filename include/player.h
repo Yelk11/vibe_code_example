@@ -7,7 +7,7 @@
 
 // Functions
 void init_player(void);
-void move_player(char direction);
+void move_player(int dx, int dy);
 int add_to_inventory(Item item);  // Returns 1 on success, 0 on failure
 void remove_from_inventory(int index);
 void use_item(Item* item);

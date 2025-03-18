@@ -1,17 +1,20 @@
 #include "game.h"
-#include "map.h"
+#include "ui.h"
 #include "player.h"
-#include "quest.h"
-#include "enemy.h"
-#include <stdlib.h>
-#include <time.h>
+#include <locale.h>
 
 int main() {
-    // Initialize game systems
+    // Set up locale for UTF-8 support
+    setlocale(LC_ALL, "");
+    
+    // Initialize game
     init_game();
     
     // Run game loop
     game_loop();
+    
+    // Clean up
+    cleanup_game();
     
     return 0;
 } 

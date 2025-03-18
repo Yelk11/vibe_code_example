@@ -1,288 +1,227 @@
 #include "enemy.h"
-#include "map.h"
-#include "item.h"
 #include "player.h"
+#include "map.h"
 
-// Update all enemies (movement and combat)
-void update_enemies() {
-    move_enemies();
-    check_combat();
-}
+// Helper function declarations
+static int is_enemy_at(int x, int y);
 
-// Initialize enemies on current floor
+// Initialize enemies
 void init_enemies() {
     Floor* floor = current_floor_ptr();
-    
-    // Clear existing enemies
     for (int i = 0; i < MAX_ENEMIES; i++) {
         floor->enemies[i].active = 0;
     }
+}
+
+// Update a single enemy
+void update_enemy(Enemy* enemy) {
+    if (!enemy->active) return;
     
-    // Place enemies in rooms (except first room)
-    int num_enemies = min(3 + current_floor, MAX_ENEMIES);
-    int enemies_placed = 0;
+    // Calculate distance to player
+    int dx = player.x - enemy->x;
+    int dy = player.y - enemy->y;
+    int dist = abs(dx) + abs(dy);  // Manhattan distance
     
-    for (int i = 1; i < floor->num_rooms && enemies_placed < num_enemies; i++) {
-        Room* room = &floor->rooms[i];
+    // If player is adjacent, attack
+    if (dist == 1) {
+        enemy_attack(enemy, player.x, player.y);
+        return;
+    }
+    
+    // If player is in range and enemy is ranged, attack
+    if (enemy->type == ENEMY_RANGED && dist <= enemy->range) {
+        enemy_attack(enemy, player.x, player.y);
+        return;
+    }
+    
+    // Move towards player
+    int move_dx = 0;
+    int move_dy = 0;
+    
+    if (dx > 0) move_dx = 1;
+    else if (dx < 0) move_dx = -1;
+    
+    if (dy > 0) move_dy = 1;
+    else if (dy < 0) move_dy = -1;
+    
+    // Try to move
+    move_enemy(enemy, move_dx, move_dy);
+    
+    // Fast enemies get a second move
+    if (enemy->type == ENEMY_FAST) {
+        move_enemy(enemy, move_dx, move_dy);
+    }
+}
+
+// Move enemy by dx, dy
+void move_enemy(Enemy* enemy, int dx, int dy) {
+    int new_x = enemy->x + dx;
+    int new_y = enemy->y + dy;
+    Floor* floor = current_floor_ptr();
+    
+    // Check if move is valid
+    if (new_x >= 0 && new_x < MAP_WIDTH &&
+        new_y >= 0 && new_y < MAP_HEIGHT &&
+        floor->map[new_y][new_x] == '.' &&
+        !is_enemy_at(new_x, new_y)) {
+        enemy->x = new_x;
+        enemy->y = new_y;
+    }
+}
+
+// Enemy attacks target location
+void enemy_attack(Enemy* enemy, int target_x, int target_y) {
+    // Only attack if target is player
+    if (target_x == player.x && target_y == player.y) {
+        // Calculate damage with defense reduction
+        int damage = max(0, enemy->power - player.defense);
         
-        // 75% chance for each room to have an enemy
-        if (rand() % 4 < 3) {
-            Enemy enemy;
+        // Apply damage to player
+        player.health -= damage;
+        
+        if (damage > 0) {
+            add_message("%s hits you for %d damage!", enemy->name, damage);
             
-            // Determine enemy type
-            int r = rand() % 100;
-            if (r < 60) enemy.type = ENEMY_BASIC;     // 60%
-            else if (r < 80) enemy.type = ENEMY_FAST; // 20%
-            else if (r < 95) enemy.type = ENEMY_RANGED; // 15%
-            else enemy.type = ENEMY_BOSS;             // 5%
+            // Check if player died
+            if (player.health <= 0) {
+                add_message("You have died!");
+            }
+        } else {
+            add_message("%s attacks but does no damage!", enemy->name);
+        }
+    }
+}
+
+// Spawn a new enemy
+void spawn_enemy(int x, int y, EnemyType type) {
+    Floor* floor = current_floor_ptr();
+    
+    // Find empty enemy slot
+    for (int i = 0; i < MAX_ENEMIES; i++) {
+        if (!floor->enemies[i].active) {
+            Enemy* enemy = &floor->enemies[i];
+            enemy->active = 1;
+            enemy->x = x;
+            enemy->y = y;
+            enemy->type = type;
             
-            // Set enemy properties based on type and floor level
-            switch(enemy.type) {
+            // Set enemy stats based on type
+            switch (type) {
                 case ENEMY_BASIC:
-                    strcpy(enemy.name, "Goblin");
-                    enemy.symbol = 'g';
-                    enemy.health = 20 + current_floor * 5;
-                    enemy.power = 5 + current_floor;
-                    enemy.defense = 2 + current_floor / 2;
-                    enemy.speed = 1;
-                    enemy.range = 1;
-                    enemy.exp_value = 10 + current_floor * 2;
+                    strcpy(enemy->name, "Goblin");
+                    enemy->symbol = 'g';
+                    enemy->health = enemy->max_health = 10;
+                    enemy->power = 6;
+                    enemy->defense = 1;
+                    enemy->speed = 1;
+                    enemy->range = 1;
+                    enemy->exp_value = 10;
                     break;
                     
                 case ENEMY_FAST:
-                    strcpy(enemy.name, "Wolf");
-                    enemy.symbol = 'w';
-                    enemy.health = 15 + current_floor * 4;
-                    enemy.power = 4 + current_floor;
-                    enemy.defense = 1 + current_floor / 3;
-                    enemy.speed = 2;
-                    enemy.range = 1;
-                    enemy.exp_value = 15 + current_floor * 3;
+                    strcpy(enemy->name, "Wolf");
+                    enemy->symbol = 'w';
+                    enemy->health = enemy->max_health = 8;
+                    enemy->power = 2;
+                    enemy->defense = 0;
+                    enemy->speed = 2;
+                    enemy->range = 1;
+                    enemy->exp_value = 15;
                     break;
                     
                 case ENEMY_RANGED:
-                    strcpy(enemy.name, "Archer");
-                    enemy.symbol = 'a';
-                    enemy.health = 12 + current_floor * 3;
-                    enemy.power = 6 + current_floor * 2;
-                    enemy.defense = 1 + current_floor / 4;
-                    enemy.speed = 1;
-                    enemy.range = 4;
-                    enemy.exp_value = 20 + current_floor * 4;
+                    strcpy(enemy->name, "Archer");
+                    enemy->symbol = 'a';
+                    enemy->health = enemy->max_health = 6;
+                    enemy->power = 4;
+                    enemy->defense = 0;
+                    enemy->speed = 1;
+                    enemy->range = 5;
+                    enemy->exp_value = 20;
                     break;
                     
                 case ENEMY_BOSS:
-                    strcpy(enemy.name, "Ogre");
-                    enemy.symbol = 'O';
-                    enemy.health = 50 + current_floor * 10;
-                    enemy.power = 10 + current_floor * 2;
-                    enemy.defense = 5 + current_floor;
-                    enemy.speed = 1;
-                    enemy.range = 2;
-                    enemy.exp_value = 50 + current_floor * 10;
+                    strcpy(enemy->name, "Dragon");
+                    enemy->symbol = 'D';
+                    enemy->health = enemy->max_health = 50;
+                    enemy->power = 8;
+                    enemy->defense = 3;
+                    enemy->speed = 1;
+                    enemy->range = 3;
+                    enemy->exp_value = 100;
                     break;
             }
-            
-            enemy.max_health = enemy.health;
-            enemy.active = 1;
-            
-            // Place enemy in room
-            enemy.x = room->x + 1 + rand() % (room->width - 2);
-            enemy.y = room->y + 1 + rand() % (room->height - 2);
-            
-            // Add to floor's enemy list
-            for (int j = 0; j < MAX_ENEMIES; j++) {
-                if (!floor->enemies[j].active) {
-                    floor->enemies[j] = enemy;
-                    enemies_placed++;
-                    break;
-                }
-            }
+            break;
         }
     }
 }
 
-// Move enemies
-void move_enemies() {
-    Floor* floor = current_floor_ptr();
-    
-    for (int i = 0; i < MAX_ENEMIES; i++) {
-        Enemy* enemy = &floor->enemies[i];
-        if (!enemy->active) continue;
-        
-        // Calculate distance to player
-        int dx = player.x - enemy->x;
-        int dy = player.y - enemy->y;
-        int dist = (int)sqrt(dx*dx + dy*dy);
-        
-        // If player is in range, try to attack
-        if (dist <= enemy->range) {
-            // Attack player
-            int damage = max(0, enemy->power - player.defense);
-            player.health -= damage;
-            
-            if (damage > 0) {
-                add_message("%s hits you for %d damage!", 
-                           enemy->name, damage);
-            } else {
-                add_message("%s's attack was blocked!", 
-                           enemy->name);
-            }
-            continue;
-        }
-        
-        // If player is visible, move toward them
-        if (dist < VIEW_RADIUS && floor->visible[enemy->y][enemy->x]) {
-            // Try to move closer to player
-            int new_x = enemy->x;
-            int new_y = enemy->y;
-            
-            if (abs(dx) > abs(dy)) {
-                new_x += (dx > 0) ? 1 : -1;
-            } else {
-                new_y += (dy > 0) ? 1 : -1;
-            }
-            
-            // Check if new position is valid
-            if (new_x > 0 && new_x < MAP_WIDTH-1 &&
-                new_y > 0 && new_y < MAP_HEIGHT-1 &&
-                floor->map[new_y][new_x] == '.') {
-                
-                // Check for collisions with other enemies
-                int collision = 0;
-                for (int j = 0; j < MAX_ENEMIES; j++) {
-                    if (i != j && floor->enemies[j].active &&
-                        floor->enemies[j].x == new_x &&
-                        floor->enemies[j].y == new_y) {
-                        collision = 1;
-                        break;
-                    }
-                }
-                
-                if (!collision) {
-                    enemy->x = new_x;
-                    enemy->y = new_y;
-                }
-            }
-        }
-    }
-}
-
-// Handle enemy death
+// Kill an enemy
 void kill_enemy(Enemy* enemy) {
-    Floor* floor = current_floor_ptr();
+    if (!enemy->active) return;
     
-    // Mark enemy as inactive
-    enemy->active = 0;
-    
-    // Add experience to player
+    add_message("The %s dies!", enemy->name);
     player.exp += enemy->exp_value;
-    add_message("Defeated %s! Gained %d experience.", 
-               enemy->name, enemy->exp_value);
+    enemy->active = 0;
     
     // Check for level up
     if (player.exp >= player.exp_next) {
         level_up();
     }
-    
-    // Chance to drop item
-    if (rand() % 100 < 30) {  // 30% chance
-        for (int j = 0; j < MAX_ITEMS; j++) {
-            if (!floor->items[j].active) {
-                floor->items[j] = create_random_item(current_floor);
-                floor->items[j].x = enemy->x;
-                floor->items[j].y = enemy->y;
-                floor->items[j].active = 1;
-                add_message("%s dropped %s!", 
-                           enemy->name, floor->items[j].name);
-                break;
-            }
-        }
-    }
-    
-    // Chance to drop gold
-    if (rand() % 100 < 50) {  // 50% chance
-        int gold = 5 + rand() % (10 + current_floor * 5);
-        for (int j = 0; j < MAX_ITEMS; j++) {
-            if (!floor->items[j].active) {
-                floor->items[j].type = ITEM_GOLD;
-                floor->items[j].value = gold;
-                floor->items[j].x = enemy->x;
-                floor->items[j].y = enemy->y;
-                floor->items[j].active = 1;
-                floor->items[j].symbol = '$';
-                snprintf(floor->items[j].name, MAX_NAME_LEN,
-                        "%d Gold", gold);
-                add_message("%s dropped %d gold!", 
-                           enemy->name, gold);
-                break;
-            }
-        }
-    }
 }
 
-// Check for combat and handle different enemy types
-void check_combat() {
+// Helper function to check if an enemy is at a location
+static int is_enemy_at(int x, int y) {
     Floor* floor = current_floor_ptr();
     for (int i = 0; i < MAX_ENEMIES; i++) {
-        if (!floor->enemies[i].active) continue;
-        
         Enemy* enemy = &floor->enemies[i];
-        int dx = player.x - enemy->x;
-        int dy = player.y - enemy->y;
-        int dist = (int)sqrt(dx*dx + dy*dy);
+        if (enemy->active && enemy->x == x && enemy->y == y) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// Spawn enemies for the current floor
+void spawn_floor_enemies() {
+    Floor* floor = current_floor_ptr();
+    
+    // Spawn enemies in random rooms
+    for (int i = 0; i < floor->num_rooms; i++) {
+        Room* room = &floor->rooms[i];
+        // Skip the first room on floor 0 (player's starting room)
+        if (current_floor == 0 && i == 0) continue;
         
-        if (dist <= enemy->range) {
-            // Check for dodge
-            if (rand() % 100 < player.dodge_chance) {
-                add_message("You dodged %s's attack!", enemy->name);
-                continue;
-            }
-            
-            int player_damage = max(1, player.power - enemy->defense);
-            int enemy_damage = max(1, enemy->power - player.defense);
-            
-            // Check for critical hit
-            if (rand() % 100 < player.critical_chance) {
-                player_damage *= 2;
-                add_message("Critical hit!");
-            }
-            
-            if (enemy->type == ENEMY_RANGED && dist <= 1) {
-                enemy_damage = enemy_damage / 2;
-            }
-            
-            if (enemy->type == ENEMY_BOSS && game_turn % 3 == 0) {
-                enemy_damage *= 2;
-                add_message("The %s uses a special attack!", enemy->name);
+        // 70% chance to spawn enemies in each room
+        if (rand() % 100 < 70) {
+            // Spawn 1-3 enemies per room
+            int num_enemies = random_range(1, 3);
+            for (int j = 0; j < num_enemies; j++) {
+                // Find a random position in the room
+                int x = room->x + 1 + rand() % (room->width - 2);
+                int y = room->y + 1 + rand() % (room->height - 2);
                 
-                // Boss can apply status effects
-                if (rand() % 100 < 30) {  // 30% chance
-                    switch(rand() % 3) {
-                        case 0:
-                            apply_status_effect(STATUS_POISON, 3, enemy_damage/3);
-                            break;
-                        case 1:
-                            apply_status_effect(STATUS_BURN, 3, enemy_damage/3);
-                            break;
-                        case 2:
-                            apply_status_effect(STATUS_FREEZE, 3, 2);
-                            break;
-                    }
+                // Randomly choose enemy type based on floor level
+                EnemyType type;
+                int r = rand() % 100;
+                if (current_floor < 3) {
+                    type = ENEMY_BASIC;
+                } else if (current_floor < 6) {
+                    if (r < 70) type = ENEMY_BASIC;
+                    else type = ENEMY_FAST;
+                } else if (current_floor < 9) {
+                    if (r < 50) type = ENEMY_BASIC;
+                    else if (r < 80) type = ENEMY_FAST;
+                    else type = ENEMY_RANGED;
+                } else {
+                    if (r < 40) type = ENEMY_BASIC;
+                    else if (r < 70) type = ENEMY_FAST;
+                    else if (r < 90) type = ENEMY_RANGED;
+                    else type = ENEMY_BOSS;
                 }
-            }
-            
-            player.health -= enemy_damage;
-            enemy->health -= player_damage;
-            
-            add_message("Combat with %s! You deal %d damage and take %d damage.", 
-                       enemy->name, player_damage, enemy_damage);
-            
-            if (enemy->health <= 0) {
-                kill_enemy(enemy);
+                
+                spawn_enemy(x, y, type);
             }
         }
     }
-    
-    game_turn++;
 } 

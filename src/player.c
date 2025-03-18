@@ -48,24 +48,36 @@ void init_player() {
 }
 
 // Handle player movement and actions
-void move_player(char input) {
-    int new_x = player.x;
-    int new_y = player.y;
+void move_player(int dx, int dy) {
+    int new_x = player.x + dx;
+    int new_y = player.y + dy;
     Floor* floor = current_floor_ptr();
-    
-    // Calculate new position based on input
-    switch (input) {
-        case 'w': new_y--; break;
-        case 's': new_y++; break;
-        case 'a': new_x--; break;
-        case 'd': new_x++; break;
-        case 'i': handle_inventory(); return;
-        default: return;
-    }
     
     // Check if new position is within bounds
     if (new_x < 0 || new_x >= MAP_WIDTH || new_y < 0 || new_y >= MAP_HEIGHT) {
         return;
+    }
+    
+    // Check for enemies at the new position
+    for (int i = 0; i < MAX_ENEMIES; i++) {
+        Enemy* enemy = &floor->enemies[i];
+        if (enemy->active && enemy->x == new_x && enemy->y == new_y) {
+            // Attack the enemy
+            int damage = max(0, player.power - enemy->defense);
+            enemy->health -= damage;
+            
+            if (damage > 0) {
+                add_message("You hit %s for %d damage!", enemy->name, damage);
+            } else {
+                add_message("You attack %s but do no damage!", enemy->name);
+            }
+            
+            // Check if enemy died
+            if (enemy->health <= 0) {
+                kill_enemy(enemy);
+            }
+            return;
+        }
     }
     
     // Check for locked stairs
@@ -98,6 +110,9 @@ void move_player(char input) {
     // Update field of view after movement
     update_fov();
     
+    // Check for items at new position
+    check_items();
+    
     // Handle stairs
     if (floor->map[new_y][new_x] == '<') {
         if (current_floor > 0) {
@@ -107,7 +122,8 @@ void move_player(char input) {
             player.x = floor->down_stairs_x;
             player.y = floor->down_stairs_y;
             update_fov();  // Update FOV after changing floors
-            init_enemies();  // Initialize enemies for new floor
+            init_enemies();  // Clear enemies array
+            spawn_floor_enemies();  // Spawn new enemies
             add_message("You climb up the stairs to floor %d", current_floor + 1);
         }
     } else if (floor->map[new_y][new_x] == '>') {
@@ -118,7 +134,8 @@ void move_player(char input) {
             player.x = floor->up_stairs_x;
             player.y = floor->up_stairs_y;
             update_fov();  // Update FOV after changing floors
-            init_enemies();  // Initialize enemies for new floor
+            init_enemies();  // Clear enemies array
+            spawn_floor_enemies();  // Spawn new enemies
             add_message("You climb down the stairs to floor %d", current_floor + 1);
         }
     }

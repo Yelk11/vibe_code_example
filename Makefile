@@ -5,8 +5,12 @@ LDFLAGS = -lm -lncurses
 SRC_DIR = src
 OBJ_DIR = obj
 
+# Source files
 SRCS = $(wildcard $(SRC_DIR)/*.c)
 OBJS = $(SRCS:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
+OBJS := $(filter-out $(OBJ_DIR)/quest.o,$(OBJS))
+
+# Target executable
 TARGET = game
 
 .PHONY: all clean

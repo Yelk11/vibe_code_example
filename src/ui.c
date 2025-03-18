@@ -1,8 +1,8 @@
 #include "ui.h"
 #include "game.h"
 #include "player.h"
-#include "map.h"
-#include "quest.h"
+#include "enemy.h"
+#include "message.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <ncurses.h>
@@ -113,21 +113,6 @@ void draw() {
             }
             if (enemy_found) continue;
             
-            // Check for NPCs
-            int npc_found = 0;
-            for (int i = 0; i < num_npcs; i++) {
-                NPC* npc = &npcs[i];
-                if (npc->active && npc->floor == current_floor && 
-                    npc->x == x && npc->y == y) {
-                    attron(COLOR_PAIR(4));  // Blue for NPCs
-                    mvaddch(y - start_y, x - start_x, npc->symbol);
-                    attroff(COLOR_PAIR(4));
-                    npc_found = 1;
-                    break;
-                }
-            }
-            if (npc_found) continue;
-            
             // Check for items
             int item_found = 0;
             for (int i = 0; i < MAX_ITEMS; i++) {
@@ -176,9 +161,9 @@ void draw() {
             attroff(COLOR_PAIR(7));
         } else if (y > start_y + 6) {
             int msg_index = y - (start_y + 7);
-            if (msg_index < MAX_MESSAGES && strlen(messages[msg_index]) > 0) {
+            if (msg_index < message_log.num_messages && strlen(message_log.messages[msg_index]) > 0) {
                 attron(COLOR_PAIR(7));
-                mvprintw(y - start_y, map_width + 2, "%s", messages[msg_index]);
+                mvprintw(y - start_y, map_width + 2, "%s", message_log.messages[msg_index]);
                 attroff(COLOR_PAIR(7));
             }
         }
@@ -187,7 +172,7 @@ void draw() {
     // Draw controls at the bottom
     attron(COLOR_PAIR(7));
     mvprintw(term_height - 1, 0, 
-             "Controls: [w/a/s/d] Move | [i]nventory | [q]uests | [v]iew achievements | [t]alk | [Q]uit");
+             "Controls: [w/a/s/d] Move | [i]nventory | [Q]uit");
     attroff(COLOR_PAIR(7));
     
     // Refresh the screen
@@ -215,25 +200,6 @@ void handle_resize() {
 // Get input from user
 char get_input() {
     return getch();
-}
-
-// Add a message to the message log
-void add_message(const char* fmt, ...) {
-    // Shift messages up
-    for (int i = 0; i < MAX_MESSAGES - 1; i++) {
-        strcpy(messages[i], messages[i + 1]);
-    }
-    
-    // Format and add new message
-    va_list args;
-    va_start(args, fmt);
-    vsnprintf(messages[MAX_MESSAGES - 1], MESSAGE_LENGTH, fmt, args);
-    va_end(args);
-}
-
-// Clear all messages
-void clear_messages() {
-    memset(messages, 0, sizeof(messages));
 }
 
 // Render UI elements
@@ -325,22 +291,164 @@ void view_inventory() {
     refresh();
 }
 
+// Render map
+void render_map() {
+    Floor* floor = current_floor_ptr();
+    
+    // Clear screen
+    clear();
+    
+    // Draw map
+    for (int y = 0; y < MAP_HEIGHT; y++) {
+        for (int x = 0; x < MAP_WIDTH; x++) {
+            if (floor->visible[y][x]) {
+                char tile = floor->map[y][x];
+                
+                // Apply colors based on terrain type
+                switch (floor->terrain[y][x]) {
+                    case TERRAIN_WATER:
+                        attron(COLOR_PAIR(4));
+                        break;
+                    case TERRAIN_LAVA:
+                        attron(COLOR_PAIR(1));
+                        break;
+                    case TERRAIN_GRASS:
+                        attron(COLOR_PAIR(2));
+                        break;
+                    case TERRAIN_TRAP:
+                        attron(COLOR_PAIR(5));
+                        break;
+                    default:
+                        attron(COLOR_PAIR(7));
+                        break;
+                }
+                
+                mvaddch(y, x, tile);
+                attroff(COLOR_PAIR(1) | COLOR_PAIR(2) | COLOR_PAIR(4) | COLOR_PAIR(5) | COLOR_PAIR(7));
+            } else if (floor->discovered[y][x]) {
+                mvaddch(y, x, floor->map[y][x] | A_DIM);
+            } else {
+                mvaddch(y, x, ' ');
+            }
+        }
+    }
+}
+
+// Render player
+void render_player() {
+    attron(COLOR_PAIR(2));
+    mvaddch(player.y, player.x, '@');
+    attroff(COLOR_PAIR(2));
+}
+
+// Render enemies
+void render_enemies() {
+    Floor* floor = current_floor_ptr();
+    
+    attron(COLOR_PAIR(1));
+    for (int i = 0; i < MAX_ENEMIES; i++) {
+        Enemy* enemy = &floor->enemies[i];
+        if (enemy->active && floor->visible[enemy->y][enemy->x]) {
+            mvaddch(enemy->y, enemy->x, enemy->symbol);
+        }
+    }
+    attroff(COLOR_PAIR(1));
+}
+
+// Render messages
+void render_messages() {
+    int start_y = MAP_HEIGHT + 1;
+    
+    // Draw message box border
+    attron(COLOR_PAIR(6));
+    mvhline(start_y - 1, 0, '-', MAP_WIDTH);
+    attroff(COLOR_PAIR(6));
+    
+    // Draw messages
+    attron(COLOR_PAIR(7));
+    for (int i = 0; i < message_log.num_messages && i < 5; i++) {
+        mvprintw(start_y + i, 1, "%s", message_log.messages[i]);
+    }
+    attroff(COLOR_PAIR(7));
+}
+
+// Render status
+void render_status() {
+    int start_x = MAP_WIDTH + 2;
+    int start_y = 1;
+    
+    // Draw status box border
+    attron(COLOR_PAIR(6));
+    mvvline(0, MAP_WIDTH + 1, '|', MAP_HEIGHT);
+    attroff(COLOR_PAIR(6));
+    
+    // Draw player stats
+    attron(COLOR_PAIR(7));
+    mvprintw(start_y++, start_x, "Level: %d", player.level);
+    mvprintw(start_y++, start_x, "HP: %d/%d", player.health, player.max_health);
+    mvprintw(start_y++, start_x, "MP: %d/%d", player.mana, player.max_mana);
+    mvprintw(start_y++, start_x, "XP: %d/%d", player.exp, player.exp_next);
+    mvprintw(start_y++, start_x, "Power: %d", player.power);
+    mvprintw(start_y++, start_x, "Defense: %d", player.defense);
+    mvprintw(start_y++, start_x, "Gold: %d", player.gold);
+    
+    // Draw floor info
+    start_y++;
+    mvprintw(start_y++, start_x, "Floor: %d", current_floor + 1);
+    
+    // Draw status effects
+    start_y++;
+    mvprintw(start_y++, start_x, "Status:");
+    for (int i = 0; i < MAX_STATUS_EFFECTS; i++) {
+        if (player.status[i].type != STATUS_NONE) {
+            mvprintw(start_y++, start_x, "%d: %d turns", 
+                    player.status[i].type, player.status[i].duration);
+        }
+    }
+    
+    // Draw abilities
+    start_y++;
+    mvprintw(start_y++, start_x, "Abilities:");
+    for (int i = 0; i < player.num_abilities; i++) {
+        if (player.abilities[i].current_cooldown > 0) {
+            mvprintw(start_y++, start_x, "%c) %s (%d)",
+                    player.abilities[i].key,
+                    player.abilities[i].name,
+                    player.abilities[i].current_cooldown);
+        } else {
+            mvprintw(start_y++, start_x, "%c) %s",
+                    player.abilities[i].key,
+                    player.abilities[i].name);
+        }
+    }
+    attroff(COLOR_PAIR(7));
+}
+
+// Refresh screen
+void refresh_screen() {
+    refresh();
+}
+
 // Save game state
 void save_game(const char* filename) {
     FILE* file = fopen(filename, "wb");
-    if (file == NULL) {
+    if (!file) {
         add_message("Failed to save game");
         return;
     }
     
-    // Write game state
-    fwrite(&player, sizeof(Player), 1, file);
+    // Save game state
     fwrite(&current_floor, sizeof(int), 1, file);
-    fwrite(floors, sizeof(Floor), MAX_FLOORS, file);  // This now includes has_visited flag
-    fwrite(quests, sizeof(Quest), MAX_QUESTS, file);
-    fwrite(&num_quests, sizeof(int), 1, file);
-    fwrite(achievements, sizeof(Achievement), MAX_ACHIEVEMENTS, file);
-    fwrite(&num_achievements, sizeof(int), 1, file);
+    fwrite(&game_turn, sizeof(int), 1, file);
+    
+    // Save floors
+    fwrite(floors, sizeof(Floor), MAX_FLOORS, file);
+    
+    // Save player
+    fwrite(&player, sizeof(Player), 1, file);
+    
+    // Save message log
+    fwrite(&message_log, sizeof(MessageLog), 1, file);
     
     fclose(file);
     add_message("Game saved successfully");
@@ -349,19 +457,23 @@ void save_game(const char* filename) {
 // Load game state
 void load_game(const char* filename) {
     FILE* file = fopen(filename, "rb");
-    if (file == NULL) {
+    if (!file) {
         add_message("Failed to load game");
         return;
     }
     
-    // Read game state
-    fread(&player, sizeof(Player), 1, file);
+    // Load game state
     fread(&current_floor, sizeof(int), 1, file);
-    fread(floors, sizeof(Floor), MAX_FLOORS, file);  // This now includes has_visited flag
-    fread(quests, sizeof(Quest), MAX_QUESTS, file);
-    fread(&num_quests, sizeof(int), 1, file);
-    fread(achievements, sizeof(Achievement), MAX_ACHIEVEMENTS, file);
-    fread(&num_achievements, sizeof(int), 1, file);
+    fread(&game_turn, sizeof(int), 1, file);
+    
+    // Load floors
+    fread(floors, sizeof(Floor), MAX_FLOORS, file);
+    
+    // Load player
+    fread(&player, sizeof(Player), 1, file);
+    
+    // Load message log
+    fread(&message_log, sizeof(MessageLog), 1, file);
     
     fclose(file);
     add_message("Game loaded successfully");

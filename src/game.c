@@ -1,8 +1,8 @@
 #include "game.h"
 #include "map.h"
 #include "player.h"
-#include "common.h"
-#include "quest.h"
+#include "enemy.h"
+#include "ui.h"
 #include <stdlib.h>
 #include <time.h>
 #include <ncurses.h>
@@ -12,10 +12,6 @@ void init_game() {
     // Initialize random seed
     srand(time(NULL));
     
-    // Initialize game state
-    game_state = GAME_RUNNING;
-    current_floor = 0;
-    
     // Initialize UI
     init_ui();
     
@@ -23,92 +19,41 @@ void init_game() {
     init_player();
     
     // Initialize first floor
-    Floor* floor = &floors[current_floor];
-    init_floor(floor);
+    current_floor = 0;
+    init_floor(&floors[current_floor]);
     
-    // Initialize quests
-    init_quests();
+    // Place player in first room
+    Room* first_room = &floors[current_floor].rooms[0];
+    player.x = first_room->x + first_room->width / 2;
+    player.y = first_room->y + first_room->height / 2;
     
-    // Initialize achievements
-    init_achievements();
+    // Initialize message log
+    message_log.num_messages = 0;
     
-    // Add initial message
-    add_message("Welcome to the dungeon! Use WASD to move.");
+    add_message("Welcome to the dungeon!");
 }
 
-// Show death screen and handle retry option
-void show_death_screen() {
-    int term_width, term_height;
-    get_terminal_size(&term_width, &term_height);
-    
-    // Clear screen
-    clear();
-    
-    // Draw death message
-    attron(COLOR_PAIR(1));  // Red color for death message
-    mvprintw(term_height/2 - 2, term_width/2 - 15, "YOU HAVE DIED!");
-    attroff(COLOR_PAIR(1));
-    
-    // Draw stats
-    attron(COLOR_PAIR(7));  // White color for stats
-    mvprintw(term_height/2, term_width/2 - 20, "Level: %d", player.level);
-    mvprintw(term_height/2 + 1, term_width/2 - 20, "Gold: %d", player.gold);
-    mvprintw(term_height/2 + 2, term_width/2 - 20, "Experience: %d", player.exp);
-    attroff(COLOR_PAIR(7));
-    
-    // Draw options
-    attron(COLOR_PAIR(3));  // Yellow color for options
-    mvprintw(term_height/2 + 4, term_width/2 - 20, "Press [R] to try again");
-    mvprintw(term_height/2 + 5, term_width/2 - 20, "Press [Q] to quit");
-    attroff(COLOR_PAIR(3));
-    
-    refresh();
-    
-    // Wait for input
-    char input;
-    while (1) {
-        input = get_input();
-        if (input == 'r' || input == 'R') {
-            // Reset game state
-            game_state = GAME_RUNNING;
-            init_game();  // Reinitialize the game
-            break;
-        } else if (input == 'q' || input == 'Q') {
-            game_state = GAME_OVER;
-            break;
-        }
-    }
+// Clean up game resources
+void cleanup_game() {
+    cleanup_ui();
 }
 
 // Main game loop
 void game_loop() {
-    char input;
-    int last_width = 0, last_height = 0;
-    int current_width, current_height;
+    int input;
     
-    while (game_state != GAME_OVER) {
-        // Check for window resize
-        get_terminal_size(&current_width, &current_height);
-        if (current_width != last_width || current_height != last_height) {
-            handle_resize();
-            last_width = current_width;
-            last_height = current_height;
-        }
-        
+    while (1) {
         // Update field of view
         update_fov();
         
-        // Draw game state
-        draw();
+        // Render game state
+        render_game();
         
         // Get player input
-        input = get_input();
+        input = getch();
         
-        // Process input
+        // Handle input
         handle_input(input);
-        
-        // Check for items at player position
-        check_items();
         
         // Update game state
         update_game();
@@ -116,55 +61,115 @@ void game_loop() {
         // Check if player is dead
         if (player.health <= 0) {
             show_death_screen();
+            break;
         }
     }
-    
-    // Cleanup UI before exit
-    cleanup_ui();
 }
 
+// Handle player input
+void handle_input(int input) {
+    int dx = 0, dy = 0;
+    
+    switch (input) {
+        case 'a': dx = -1; break;  // Move left
+        case 'd': dx = 1; break;   // Move right
+        case 'w': dy = -1; break;  // Move up
+        case 's': dy = 1; break;   // Move down
+        case 'q': dx = -1; dy = -1; break;  // Move diagonally up-left
+        case 'e': dx = 1; dy = -1; break;   // Move diagonally up-right
+        case 'z': dx = -1; dy = 1; break;   // Move diagonally down-left
+        case 'c': dx = 1; dy = 1; break;    // Move diagonally down-right
+        case 'i': handle_inventory(); break; // Open inventory
+        case '.': break;  // Wait one turn
+        case 'Q': cleanup_game(); exit(0); break;  // Quit game
+    }
+    
+    if (dx != 0 || dy != 0) {
+        move_player(dx, dy);
+    }
+}
+
+// Update game state
 void update_game() {
     // Update enemies
-    update_enemies();
+    for (int i = 0; i < MAX_ENEMIES; i++) {
+        Enemy* enemy = &current_floor_ptr()->enemies[i];
+        if (enemy->active) {
+            update_enemy(enemy);
+        }
+    }
     
-    // Update quests
-    update_quests();
+    // Update status effects
+    for (int i = 0; i < MAX_STATUS_EFFECTS; i++) {
+        if (player.status[i].type != STATUS_NONE) {
+            if (--player.status[i].duration <= 0) {
+                player.status[i].type = STATUS_NONE;
+            }
+        }
+    }
     
-    // Update achievements
-    update_achievements();
+    // Update ability cooldowns
+    for (int i = 0; i < player.num_abilities; i++) {
+        if (player.abilities[i].current_cooldown > 0) {
+            player.abilities[i].current_cooldown--;
+        }
+    }
+    
+    // Regenerate mana
+    if (player.mana < player.max_mana) {
+        player.mana += player.mana_regen;
+        if (player.mana > player.max_mana) {
+            player.mana = player.max_mana;
+        }
+    }
+    
+    game_turn++;
 }
 
-void handle_input(char input) {
-    switch (input) {
-        case 'w':
-        case 'a':
-        case 's':
-        case 'd':
-            move_player(input);
-            break;
-        case 'i':
-            view_inventory();
-            break;
-        case 'q':
-            view_quests();
-            break;
-        case 'v':
-            view_achievements();
-            break;
-        case 't': {
-            // Find nearby NPC
-            for (int i = 0; i < num_npcs; i++) {
-                NPC* npc = &npcs[i];
-                if (npc->active && npc->floor == current_floor &&
-                    abs(npc->x - player.x) <= 1 && abs(npc->y - player.y) <= 1) {
-                    handle_npc_interaction(npc);
-                    break;
-                }
-            }
-            break;
+// Render game state
+void render_game() {
+    // First render the map
+    render_map();
+    
+    // Then render items, enemies, and player
+    Floor* floor = current_floor_ptr();
+    
+    // Render items
+    for (int i = 0; i < MAX_ITEMS; i++) {
+        Item* item = &floor->items[i];
+        if (item->active && floor->visible[item->y][item->x]) {
+            attron(COLOR_PAIR(3));  // Yellow for items
+            mvaddch(item->y, item->x, item->symbol);
+            attroff(COLOR_PAIR(3));
         }
-        case 'Q':
-            game_state = GAME_OVER;
-            break;
     }
+    
+    // Render enemies
+    for (int i = 0; i < MAX_ENEMIES; i++) {
+        Enemy* enemy = &floor->enemies[i];
+        if (enemy->active && floor->visible[enemy->y][enemy->x]) {
+            attron(COLOR_PAIR(1));  // Red for enemies
+            mvaddch(enemy->y, enemy->x, enemy->symbol);
+            attroff(COLOR_PAIR(1));
+        }
+    }
+    
+    // Finally render the player
+    attron(COLOR_PAIR(2));  // Green for player
+    mvaddch(player.y, player.x, '@');
+    attroff(COLOR_PAIR(2));
+    
+    // Render UI elements
+    render_messages();
+    render_status();
+    refresh_screen();
+}
+
+// Show death screen and handle retry option
+void show_death_screen() {
+    clear();
+    mvprintw(SCREEN_HEIGHT/2 - 2, SCREEN_WIDTH/2 - 5, "YOU DIED!");
+    mvprintw(SCREEN_HEIGHT/2, SCREEN_WIDTH/2 - 12, "Press any key to exit");
+    refresh();
+    getch();
 } 

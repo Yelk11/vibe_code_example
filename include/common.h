@@ -32,9 +32,6 @@
 #define MAX_DOORS 10  // Maximum number of doors per floor
 #define MAX_DIALOGUE_LEN 256
 #define MAX_NPCS 20
-#define MAX_QUESTS 20
-#define MAX_OBJECTIVES 5
-#define MAX_ACHIEVEMENTS 20
 #define MAX_INVENTORY 20
 #define MAX_STATUS_EFFECTS 10
 
@@ -67,10 +64,7 @@ typedef struct Room Room;
 typedef struct Floor Floor;
 typedef struct MessageLog MessageLog;
 typedef struct Door Door;
-typedef struct Quest Quest;
 typedef struct NPC NPC;
-typedef struct Achievement Achievement;
-typedef struct Objective Objective;
 typedef struct DialogueNode DialogueNode;
 typedef struct DialogueOption DialogueOption;
 
@@ -138,39 +132,12 @@ typedef enum {
     MAX_ABILITIES
 } AbilityType;
 
-// Quest status
-typedef enum {
-    QUEST_INACTIVE,
-    QUEST_ACTIVE,
-    QUEST_COMPLETED,
-    QUEST_FAILED
-} QuestStatus;
-
-// Quest objective types
-typedef enum {
-    OBJECTIVE_KILL_ENEMIES,
-    OBJECTIVE_COLLECT_ITEMS,
-    OBJECTIVE_REACH_LOCATION,
-    OBJECTIVE_TALK_TO_NPC
-} ObjectiveType;
-
 // NPC types
 typedef enum {
-    NPC_QUEST_GIVER,
     NPC_BLACKSMITH,
     NPC_SAGE,
     NPC_MERCHANT
 } NPCType;
-
-// Achievement types
-typedef enum {
-    ACHIEVEMENT_KILL_BOSS,
-    ACHIEVEMENT_REACH_FLOOR,
-    ACHIEVEMENT_COLLECT_GOLD,
-    ACHIEVEMENT_COMPLETE_QUESTS,
-    ACHIEVEMENT_FIND_UNIQUE_ITEMS,
-    ACHIEVEMENT_MAX_LEVEL
-} AchievementType;
 
 // Door structure definition
 struct Door {
@@ -289,29 +256,6 @@ struct MessageLog {
     int num_messages;
 };
 
-struct Objective {
-    ObjectiveType type;
-    int required_amount;
-    int current_amount;
-    char description[MAX_DESC_LEN];
-    int target_id;  // Enemy type, item type, or location ID
-};
-
-struct Quest {
-    int id;
-    char name[MAX_NAME_LEN];
-    char description[MAX_DESC_LEN];
-    QuestStatus status;
-    int is_main_quest;
-    int num_objectives;
-    Objective objectives[MAX_OBJECTIVES];
-    int prereq_quest_id;
-    int reward_gold;
-    int reward_exp;
-    Item reward_item;
-    int has_choice;
-};
-
 struct NPC {
     int id;
     char name[MAX_NAME_LEN];
@@ -325,24 +269,12 @@ struct NPC {
     int current_dialogue_id;
     int shop_inventory[INVENTORY_SIZE];
     int num_shop_items;
-    int quest_id;  // -1 if no quest
     char dialogue[MAX_DIALOGUE_LEN];
-};
-
-struct Achievement {
-    char name[MAX_NAME_LEN];
-    char description[MAX_DESC_LEN];
-    AchievementType type;
-    int required_amount;
-    int current_amount;
-    int is_unlocked;
 };
 
 struct DialogueOption {
     char text[MAX_DIALOGUE_LEN];
     int next_dialogue_id;
-    int quest_id;
-    int required_quest_id;
 };
 
 struct DialogueNode {

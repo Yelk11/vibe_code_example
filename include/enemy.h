@@ -3,10 +3,13 @@
 
 #include "common.h"
 
-// Enemy management functions
+// Enemy functions
 void init_enemies(void);
-void move_enemies(void);
-void check_combat(void);
-void handle_combat(Enemy* enemy);
+void update_enemy(Enemy* enemy);
+void spawn_enemy(int x, int y, EnemyType type);
+void spawn_floor_enemies(void);
+void kill_enemy(Enemy* enemy);
+void move_enemy(Enemy* enemy, int dx, int dy);
+void enemy_attack(Enemy* enemy, int target_x, int target_y);
 
 #endif // ENEMY_H 

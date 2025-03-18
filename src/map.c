@@ -1,4 +1,11 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
 #include "map.h"
+#include "globals.h"
+#include "enemy.h"
+#include "item.h"
 #include "player.h"
 
 // Get current floor
