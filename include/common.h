@@ -48,6 +48,15 @@
 #define COLOR_CYAN    "\x1b[36m"
 #define COLOR_WHITE   "\x1b[37m"
 
+// Room types
+typedef enum {
+    ROOM_NORMAL,
+    ROOM_CIRCULAR,
+    ROOM_CROSS,
+    ROOM_LARGE,
+    ROOM_SMALL
+} RoomType;
+
 // Forward declarations of structures
 typedef struct Item Item;
 typedef struct Enemy Enemy;
@@ -253,6 +262,7 @@ struct Room {
     int y;
     int width;
     int height;
+    RoomType type;  // Add room type
 };
 
 struct Floor {

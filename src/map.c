@@ -6,13 +6,55 @@ Floor* current_floor_ptr() {
     return &floors[current_floor];
 }
 
-// Generate a random room
+// Generate a random room with different types
 Room generate_room() {
     Room room;
-    room.width = random_range(MIN_ROOM_SIZE, MAX_ROOM_SIZE);
-    room.height = random_range(MIN_ROOM_SIZE, MAX_ROOM_SIZE);
-    room.x = random_range(1, MAP_WIDTH - room.width - 1);
-    room.y = random_range(1, MAP_HEIGHT - room.height - 1);
+    RoomType type = random_range(0, 4);  // 5 different room types
+    
+    // Initialize common room properties
+    room.type = type;
+    
+    switch (type) {
+        case ROOM_CIRCULAR:
+            // Circular room
+            room.width = random_range(MIN_ROOM_SIZE, MAX_ROOM_SIZE);
+            room.height = room.width;  // Make it square for circular shape
+            room.x = random_range(1, MAP_WIDTH - room.width - 1);
+            room.y = random_range(1, MAP_HEIGHT - room.height - 1);
+            break;
+            
+        case ROOM_CROSS:
+            // Cross-shaped room
+            room.width = random_range(MIN_ROOM_SIZE + 4, MAX_ROOM_SIZE + 4);
+            room.height = room.width;
+            room.x = random_range(1, MAP_WIDTH - room.width - 1);
+            room.y = random_range(1, MAP_HEIGHT - room.height - 1);
+            break;
+            
+        case ROOM_LARGE:
+            // Large rectangular room
+            room.width = random_range(MAX_ROOM_SIZE, MAX_ROOM_SIZE + 4);
+            room.height = random_range(MAX_ROOM_SIZE, MAX_ROOM_SIZE + 4);
+            room.x = random_range(1, MAP_WIDTH - room.width - 1);
+            room.y = random_range(1, MAP_HEIGHT - room.height - 1);
+            break;
+            
+        case ROOM_SMALL:
+            // Small room
+            room.width = random_range(MIN_ROOM_SIZE, MIN_ROOM_SIZE + 2);
+            room.height = random_range(MIN_ROOM_SIZE, MIN_ROOM_SIZE + 2);
+            room.x = random_range(1, MAP_WIDTH - room.width - 1);
+            room.y = random_range(1, MAP_HEIGHT - room.height - 1);
+            break;
+            
+        default:
+            // Normal rectangular room
+            room.width = random_range(MIN_ROOM_SIZE, MAX_ROOM_SIZE);
+            room.height = random_range(MIN_ROOM_SIZE, MAX_ROOM_SIZE);
+            room.x = random_range(1, MAP_WIDTH - room.width - 1);
+            room.y = random_range(1, MAP_HEIGHT - room.height - 1);
+    }
+    
     return room;
 }
 
@@ -24,8 +66,42 @@ int rooms_overlap(Room* r1, Room* r2, int padding) {
              r2->y + r2->height + padding < r1->y);
 }
 
-// Create a tunnel between two points
+// Create a tunnel between two points with improved pathing
 void create_tunnel(Floor* floor, int x1, int y1, int x2, int y2) {
+    int current_x = x1;
+    int current_y = y1;
+    
+    // Add some randomness to the path
+    int num_turns = random_range(1, 3);  // 1-3 turns in the path
+    int* turn_points_x = malloc(num_turns * sizeof(int));
+    int* turn_points_y = malloc(num_turns * sizeof(int));
+    
+    // Generate random turn points
+    for (int i = 0; i < num_turns; i++) {
+        turn_points_x[i] = random_range(min(x1, x2), max(x1, x2));
+        turn_points_y[i] = random_range(min(y1, y2), max(y1, y2));
+    }
+    
+    // Create path through turn points
+    int prev_x = x1;
+    int prev_y = y1;
+    
+    for (int i = 0; i < num_turns; i++) {
+        // Create path to turn point
+        create_straight_tunnel(floor, prev_x, prev_y, turn_points_x[i], turn_points_y[i]);
+        prev_x = turn_points_x[i];
+        prev_y = turn_points_y[i];
+    }
+    
+    // Create final path to destination
+    create_straight_tunnel(floor, prev_x, prev_y, x2, y2);
+    
+    free(turn_points_x);
+    free(turn_points_y);
+}
+
+// Create a straight tunnel between two points
+void create_straight_tunnel(Floor* floor, int x1, int y1, int x2, int y2) {
     int current_x = x1;
     int current_y = y1;
     
@@ -34,20 +110,24 @@ void create_tunnel(Floor* floor, int x1, int y1, int x2, int y2) {
         // Horizontal then vertical
         while (current_x != x2) {
             floor->map[current_y][current_x] = '.';
+            floor->terrain[current_y][current_x] = TERRAIN_FLOOR;
             current_x += (x2 > x1) ? 1 : -1;
         }
         while (current_y != y2) {
             floor->map[current_y][current_x] = '.';
+            floor->terrain[current_y][current_x] = TERRAIN_FLOOR;
             current_y += (y2 > y1) ? 1 : -1;
         }
     } else {
         // Vertical then horizontal
         while (current_y != y2) {
             floor->map[current_y][current_x] = '.';
+            floor->terrain[current_y][current_x] = TERRAIN_FLOOR;
             current_y += (y2 > y1) ? 1 : -1;
         }
         while (current_x != x2) {
             floor->map[current_y][current_x] = '.';
+            floor->terrain[current_y][current_x] = TERRAIN_FLOOR;
             current_x += (x2 > x1) ? 1 : -1;
         }
     }
@@ -148,6 +228,62 @@ void place_floor_key(Floor* floor, Room* room) {
     }
 }
 
+// Create a room in the map based on its type
+void create_room_in_map(Floor* floor, Room* room) {
+    switch (room->type) {
+        case ROOM_CIRCULAR:
+            // Create circular room
+            for (int y = room->y; y < room->y + room->height; y++) {
+                for (int x = room->x; x < room->x + room->width; x++) {
+                    // Calculate distance from center
+                    int center_x = room->x + room->width / 2;
+                    int center_y = room->y + room->height / 2;
+                    int dx = x - center_x;
+                    int dy = y - center_y;
+                    float dist = sqrt(dx * dx + dy * dy);
+                    
+                    // Only place floor if within radius
+                    if (dist <= room->width / 2) {
+                        floor->map[y][x] = '.';
+                        floor->terrain[y][x] = TERRAIN_FLOOR;
+                    }
+                }
+            }
+            break;
+            
+        case ROOM_CROSS:
+            // Create cross-shaped room
+            for (int y = room->y; y < room->y + room->height; y++) {
+                for (int x = room->x; x < room->x + room->width; x++) {
+                    // Check if point is in the cross shape
+                    int center_x = room->x + room->width / 2;
+                    int center_y = room->y + room->height / 2;
+                    int dx = abs(x - center_x);
+                    int dy = abs(y - center_y);
+                    
+                    // Place floor in cross pattern
+                    if (dx < room->width / 4 || dy < room->height / 4) {
+                        floor->map[y][x] = '.';
+                        floor->terrain[y][x] = TERRAIN_FLOOR;
+                    }
+                }
+            }
+            break;
+            
+        case ROOM_LARGE:
+        case ROOM_SMALL:
+        case ROOM_NORMAL:
+        default:
+            // Create normal rectangular room
+            for (int y = room->y; y < room->y + room->height; y++) {
+                for (int x = room->x; x < room->x + room->width; x++) {
+                    floor->map[y][x] = '.';
+                    floor->terrain[y][x] = TERRAIN_FLOOR;
+                }
+            }
+    }
+}
+
 // Initialize a floor
 void init_floor(Floor* floor) {
     // Clear the floor
@@ -220,13 +356,8 @@ void init_floor(Floor* floor) {
             // Add room to floor
             floor->rooms[floor->num_rooms++] = new_room;
             
-            // Create room in map
-            for (int y = new_room.y; y < new_room.y + new_room.height; y++) {
-                for (int x = new_room.x; x < new_room.x + new_room.width; x++) {
-                    floor->map[y][x] = '.';
-                    floor->terrain[y][x] = TERRAIN_FLOOR;
-                }
-            }
+            // Create room in map based on its type
+            create_room_in_map(floor, &new_room);
         }
         attempts++;
     }
