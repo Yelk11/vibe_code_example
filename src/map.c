@@ -91,10 +91,69 @@ void create_straight_tunnel(Floor* floor, int x1, int y1, int x2, int y2) {
     }
 }
 
-// Place stairs in a random room
-void place_stairs_in_room(Room* room, int* stair_x, int* stair_y) {
-    *stair_x = random_range(room->x + 1, room->x + room->width - 2);
-    *stair_y = random_range(room->y + 1, room->y + room->height - 2);
+// Check if a position is at least one space away from walls
+int is_away_from_walls(Floor* floor, int x, int y) {
+    // Check all 8 surrounding tiles
+    for (int dy = -1; dy <= 1; dy++) {
+        for (int dx = -1; dx <= 1; dx++) {
+            int check_x = x + dx;
+            int check_y = y + dy;
+            if (check_x < 0 || check_x >= MAP_WIDTH || check_y < 0 || check_y >= MAP_HEIGHT) {
+                return 0;  // Consider out of bounds as wall
+            }
+            if (floor->map[check_y][check_x] == '#') {
+                return 0;  // Found a wall nearby
+            }
+        }
+    }
+    return 1;  // No walls found nearby
+}
+
+// Place stairs in a room
+void place_stairs_in_room(Floor* floor, Room* room) {
+    int attempts = 50;  // Maximum attempts to find a valid position
+    
+    // Place up stairs in the center of the room
+    int stairs_x = room->x + room->width / 2;
+    int stairs_y = room->y + room->height / 2;
+    
+    // Ensure up stairs are away from walls
+    while (!is_away_from_walls(floor, stairs_x, stairs_y) && attempts > 0) {
+        stairs_x = room->x + random_range(2, room->width - 3);
+        stairs_y = room->y + random_range(2, room->height - 3);
+        attempts--;
+    }
+    
+    if (attempts > 0) {
+        floor->map[stairs_y][stairs_x] = '<';
+        floor->terrain[stairs_y][stairs_x] = TERRAIN_STAIRS;
+        floor->up_stairs_x = stairs_x;
+        floor->up_stairs_y = stairs_y;
+    }
+    
+    // Place locked down stairs in the last room
+    Room* down_room = &floor->rooms[floor->num_rooms - 1];
+    if (floor->num_rooms == 1) {
+        down_room = &floor->rooms[0];
+    }
+    
+    attempts = 50;
+    int down_x = down_room->x + down_room->width / 2;
+    int down_y = down_room->y + down_room->height / 2;
+    
+    // Ensure down stairs are away from walls
+    while (!is_away_from_walls(floor, down_x, down_y) && attempts > 0) {
+        down_x = down_room->x + random_range(2, down_room->width - 3);
+        down_y = down_room->y + random_range(2, down_room->height - 3);
+        attempts--;
+    }
+    
+    if (attempts > 0) {
+        floor->map[down_y][down_x] = '%';
+        floor->terrain[down_y][down_x] = TERRAIN_LOCKED_DOOR;
+        floor->down_stairs_x = down_x;
+        floor->down_stairs_y = down_y;
+    }
 }
 
 // Place a locked door between two rooms
@@ -211,33 +270,9 @@ void init_floor(int floor_num) {
     // Generate new floor if not visited before
     if (!floor->has_visited) {
         generate_floor(floor);
-        floor->has_visited = 1;
-    }
-    
-    // Place stairs if not already placed
-    if (!floor->has_stairs) {
+        
         // Place up stairs in a random room
         Room* up_room = &floor->rooms[rand() % floor->num_rooms];
-        int up_x, up_y;
-        int valid_spot = 0;
-        
-        // Try to find a valid spot for up stairs
-        for (int attempts = 0; attempts < 50 && !valid_spot; attempts++) {
-            up_x = up_room->x + 1 + rand() % (up_room->width - 2);
-            up_y = up_room->y + 1 + rand() % (up_room->height - 2);
-            
-            // Check if the spot is not blocking a hallway or entrance
-            if (floor->map[up_y-1][up_x] != '.' && floor->map[up_y+1][up_x] != '.' &&
-                floor->map[up_y][up_x-1] != '.' && floor->map[up_y][up_x+1] != '.') {
-                valid_spot = 1;
-            }
-        }
-        
-        if (valid_spot) {
-            floor->up_stairs_x = up_x;
-            floor->up_stairs_y = up_y;
-            floor->map[floor->up_stairs_y][floor->up_stairs_x] = '<';
-        }
         
         // Place down stairs in the last room (or second room if first is only room)
         Room* down_room = &floor->rooms[floor->num_rooms - 1];
@@ -245,28 +280,8 @@ void init_floor(int floor_num) {
             down_room = &floor->rooms[0];
         }
         
-        int down_x, down_y;
-        valid_spot = 0;
-        
-        // Try to find a valid spot for down stairs
-        for (int attempts = 0; attempts < 50 && !valid_spot; attempts++) {
-            down_x = down_room->x + 1 + rand() % (down_room->width - 2);
-            down_y = down_room->y + 1 + rand() % (down_room->height - 2);
-            
-            // Check if the spot is not blocking a hallway or entrance
-            if (floor->map[down_y-1][down_x] != '.' && floor->map[down_y+1][down_x] != '.' &&
-                floor->map[down_y][down_x-1] != '.' && floor->map[down_y][down_x+1] != '.') {
-                valid_spot = 1;
-            }
-        }
-        
-        if (valid_spot) {
-            floor->down_stairs_x = down_x;
-            floor->down_stairs_y = down_y;
-            // Place locked stairs initially
-            floor->map[floor->down_stairs_y][floor->down_stairs_x] = '%';
-            floor->terrain[floor->down_stairs_y][floor->down_stairs_x] = TERRAIN_LOCKED_DOOR;
-        }
+        // Place stairs
+        place_stairs_in_room(floor, up_room);
         
         // Place floor key in a different room than stairs
         Room* key_room;
@@ -275,52 +290,10 @@ void init_floor(int floor_num) {
         } while (key_room == up_room || key_room == down_room);
         
         // Add floor key to items array
-        for (int i = 0; i < MAX_ITEMS; i++) {
-            if (!floor->items[i].active) {
-                floor->items[i] = (Item){
-                    .name = "Floor Key",
-                    .description = "A key that unlocks the way forward",
-                    .x = key_room->x + 1 + rand() % (key_room->width - 2),
-                    .y = key_room->y + 1 + rand() % (key_room->height - 2),
-                    .symbol = 'K',
-                    .active = 1,
-                    .type = ITEM_KEY,
-                    .value = 200,
-                    .key_id = current_floor + 1,  // Key ID matches next floor
-                    .target_floor = current_floor  // Used on current floor
-                };
-                strcpy(floor->items[i].name, "Floor Key");
-                strcpy(floor->items[i].description, "A key that unlocks the way forward");
-                break;
-            }
-        }
+        place_floor_key(floor, key_room);
         
+        floor->has_visited = 1;
         floor->has_stairs = 1;
-    }
-    
-    // Place stairs in the last room (or first room if it's the only room)
-    Room* stairs_room = &floor->rooms[floor->num_rooms - 1];
-    if (floor->num_rooms == 1) stairs_room = &floor->rooms[0];
-    
-    // Place up stairs in the center of the room
-    int stairs_x = stairs_room->x + stairs_room->width / 2;
-    int stairs_y = stairs_room->y + stairs_room->height / 2;
-    floor->map[stairs_y][stairs_x] = '<';
-    floor->terrain[stairs_y][stairs_x] = TERRAIN_STAIRS;
-    
-    // Place locked down stairs in a random position in the room
-    int attempts = 0;
-    while (attempts < 50) {
-        int x = stairs_room->x + rand() % stairs_room->width;
-        int y = stairs_room->y + rand() % stairs_room->height;
-        
-        // Don't place stairs on walls or on top of up stairs
-        if (floor->map[y][x] != '#' && floor->map[y][x] != '<') {
-            floor->map[y][x] = '%';
-            floor->terrain[y][x] = TERRAIN_LOCKED_DOOR;
-            break;
-        }
-        attempts++;
     }
     
     // Spawn enemies for this floor
