@@ -1,69 +1,113 @@
-# Enhanced Rogue-like Game
+# Roguelike Dungeon Game
 
-A feature-rich ASCII-based rogue-like game where you explore dungeons, fight enemies, and collect items!
+A classic roguelike dungeon crawler written in C using ncurses. Explore procedurally generated dungeons, fight enemies, collect items, and try to survive!
 
 ## Features
 
-- Player character (`@`) with health system
-- Multiple enemies (`E`) that move around and engage in combat
-- Various items to collect:
-  - Coins (`$`) for scoring
-  - Health potions (`*`) to restore health
-  - Power-ups (`+`) for bonus points
-- Complex dungeon layout with multiple rooms and corridors
-- Combat system with health tracking
-- Scoring system
+- **Procedurally Generated Dungeons**: Each floor features unique square rooms connected by hallways
+- **Item System**:
+  - Weapons (Iron Swords) for combat
+  - Armor (Leather Armor) for protection
+  - Health Potions for healing
+  - Gold for collecting treasure
+  - Floor Keys to unlock stairs to the next level
+- **Combat System**: Fight enemies using equipped weapons and armor
+- **Field of View**: Dynamic visibility system that reveals areas as you explore
+- **Inventory Management**: Collect, equip, use, and drop items
+- **Status Effects**: Various effects that can help or hinder your progress
 
-## Building the Game
+## Controls
 
-To compile the game, simply run:
+- Movement:
+  - `w` - Move up
+  - `s` - Move down
+  - `a` - Move left
+  - `d` - Move right
+  - `q` - Move diagonally up-left
+  - `e` - Move diagonally up-right
+  - `z` - Move diagonally down-left
+  - `c` - Move diagonally down-right
+  - `.` - Wait one turn
 
-```bash
-make
-```
+- Inventory:
+  - `i` - Open inventory
+  - In inventory:
+    - `u` - Use selected item
+    - `d` - Drop selected item
+    - `e` - Equip selected item
+    - `q` - Close inventory
 
-## Running the Game
+- Other:
+  - `Q` - Quit game
 
-After compiling, run the game with:
+## Game Elements
 
-```bash
-./game
-```
+- `@` - Player
+- `.` - Floor
+- `#` - Wall
+- `<` - Stairs up
+- `%` - Locked stairs down
+- `/` - Weapon
+- `[` - Armor
+- `!` - Potion
+- `$` - Gold
+- `K` - Floor Key
 
-## How to Play
+## Building and Running
 
-### Movement
-- Use `W` to move up
-- Use `S` to move down
-- Use `A` to move left
-- Use `D` to move right
-- Press `Q` to quit the game
-
-### Combat
-- Move adjacent to enemies to engage in combat
-- Each combat interaction:
-  - Deals 10 damage to you
-  - Deals 25 damage to the enemy
-- Defeating an enemy awards 100 points
-
-### Items
-- `$` Coins: Collect for points
-- `*` Health Potions: Restore health
-- `+` Power-ups: Award bonus points
-
-### Terrain
-- `.` represents floor tiles
-- `#` represents walls
-- The dungeon consists of multiple connected rooms
-
-## Game Over
-The game ends when either:
-- Your health reaches 0
-- You press 'Q' to quit
-
-Your final score will be displayed when the game ends.
-
-## Requirements
+### Prerequisites
 
 - GCC compiler
-- Unix-like environment (Linux, macOS) 
+- ncurses library
+- make
+
+### Building
+
+```bash
+make clean  # Clean previous build
+make        # Compile the game
+```
+
+### Running
+
+```bash
+./game      # Start the game
+```
+
+## Game Mechanics
+
+### Rooms and Navigation
+- Each floor contains square rooms connected by hallways
+- Rooms vary in size but maintain square proportions
+- Hallways are single-tile wide for consistent navigation
+
+### Items and Equipment
+- Items spawn randomly in rooms (70% chance per room)
+- Equipment affects your combat capabilities:
+  - Weapons increase attack power
+  - Armor provides defense
+- Potions can be used to restore health
+- Gold can be collected for score/future features
+
+### Floor Progression
+1. Find the Floor Key (marked as 'K')
+2. Locate the locked stairs (marked as '%')
+3. Use the key to unlock the stairs
+4. Proceed to the next floor
+
+### Combat
+- Move into enemies to attack them
+- Damage is calculated based on:
+  - Your weapon's power
+  - Enemy's defense
+  - Random factors
+
+## Development
+
+The game is built with a modular architecture:
+- `map.c` - Dungeon generation and floor management
+- `player.c` - Player stats and inventory management
+- `enemy.c` - Enemy behavior and combat
+- `item.c` - Item definitions and interactions
+- `ui.c` - Display and user interface
+- `game.c` - Main game loop and input handling 
