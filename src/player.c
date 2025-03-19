@@ -296,9 +296,20 @@ int add_to_inventory(Item item) {
 void remove_from_inventory(int index) {
     if (index < 0 || index >= player.num_items) return;
     
+    // Set the item to inactive and ITEM_NONE
+    player.inventory[index].active = 0;
+    player.inventory[index].type = ITEM_NONE;
+    
+    // Shift all items after this one forward
     for (int i = index; i < player.num_items - 1; i++) {
         player.inventory[i] = player.inventory[i + 1];
     }
+    
+    // Clear the last slot
+    player.inventory[player.num_items - 1].type = ITEM_NONE;
+    player.inventory[player.num_items - 1].active = 0;
+    
+    // Decrease inventory size
     player.num_items--;
 }
 
@@ -401,28 +412,31 @@ void equip_item(int index) {
             return;
     }
     
+    // Handle current equipped item if any
+    if (player.equipment[slot] != NULL) {
+        // Try to add current equipment to inventory
+        Item old_equipment = *player.equipment[slot];
+        free(player.equipment[slot]);
+        player.equipment[slot] = NULL;
+        
+        if (!add_to_inventory(old_equipment)) {
+            add_message("Inventory full! Cannot unequip current item.");
+            return;
+        }
+    }
+    
     // Create new equipment item
     Item* new_equipment = (Item*)malloc(sizeof(Item));
     if (new_equipment == NULL) {
         add_message("Failed to allocate memory for equipment!");
         return;
     }
+    
+    // Copy item to equipment slot and remove from inventory
     memcpy(new_equipment, item, sizeof(Item));
-    
-    // Handle current equipped item if any
-    if (player.equipment[slot] != NULL) {
-        // Try to add current equipment to inventory
-        Item old_equipment = *player.equipment[slot];
-        if (!add_to_inventory(old_equipment)) {
-            add_message("Inventory full! Cannot unequip current item.");
-            free(new_equipment);
-            return;
-        }
-        free(player.equipment[slot]);
-    }
-    
-    // Equip new item
     player.equipment[slot] = new_equipment;
+    
+    // Remove the item from inventory
     remove_from_inventory(index);
     
     add_message("Equipped %s", new_equipment->name);

@@ -387,6 +387,74 @@ void update_fov() {
     }
 }
 
+// Place a random item in a room
+void place_random_item(Floor* floor, Room* room) {
+    // Find an empty spot in the room
+    int x = random_range(room->x + 1, room->x + room->width - 2);
+    int y = random_range(room->y + 1, room->y + room->height - 2);
+    
+    // Create a random item
+    for (int i = 0; i < MAX_ITEMS; i++) {
+        if (!floor->items[i].active) {
+            // First clear the item struct completely
+            memset(&floor->items[i], 0, sizeof(Item));
+            
+            ItemType type = random_range(ITEM_WEAPON, ITEM_GOLD);
+            
+            // Set common properties
+            floor->items[i].x = x;
+            floor->items[i].y = y;
+            floor->items[i].active = 1;
+            floor->items[i].type = type;
+            
+            // Set item properties based on type
+            switch(type) {
+                case ITEM_WEAPON:
+                    strcpy(floor->items[i].name, "Iron Sword");
+                    strcpy(floor->items[i].description, "A basic but reliable weapon");
+                    floor->items[i].symbol = '/';
+                    floor->items[i].power = random_range(3, 7);
+                    floor->items[i].value = random_range(50, 150);
+                    break;
+                    
+                case ITEM_ARMOR:
+                    strcpy(floor->items[i].name, "Leather Armor");
+                    strcpy(floor->items[i].description, "Basic protective gear");
+                    floor->items[i].symbol = '[';
+                    floor->items[i].power = random_range(2, 5);
+                    floor->items[i].value = random_range(40, 120);
+                    break;
+                    
+                case ITEM_POTION:
+                    strcpy(floor->items[i].name, "Health Potion");
+                    strcpy(floor->items[i].description, "Restores some health");
+                    floor->items[i].symbol = '!';
+                    floor->items[i].power = random_range(10, 25);
+                    floor->items[i].value = random_range(30, 80);
+                    break;
+                    
+                case ITEM_GOLD:
+                    strcpy(floor->items[i].name, "Gold");
+                    strcpy(floor->items[i].description, "Shiny coins");
+                    floor->items[i].symbol = '$';
+                    floor->items[i].value = random_range(10, 100);
+                    floor->items[i].power = floor->items[i].value;  // For gold, power = value
+                    break;
+                    
+                default:
+                    // If somehow we get an invalid type, make it inactive
+                    floor->items[i].active = 0;
+                    break;
+            }
+            
+            // Only break if we successfully created an item
+            if (floor->items[i].active) {
+                break;
+            }
+        }
+    }
+}
+
 // Generate a new floor
 void generate_floor(Floor* floor) {
     // Clear the floor
@@ -450,6 +518,14 @@ void generate_floor(Floor* floor) {
                      previous->y + previous->height / 2,
                      current->x + current->width / 2,
                      current->y + current->height / 2);
+    }
+    
+    // Place random items in rooms
+    for (int i = 0; i < floor->num_rooms; i++) {
+        // 70% chance to place an item in each room
+        if (rand() % 100 < 70) {
+            place_random_item(floor, &floor->rooms[i]);
+        }
     }
     
     // Set player position in first room if this is floor 0

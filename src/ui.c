@@ -282,7 +282,16 @@ void view_inventory() {
                 case SLOT_AMULET: slot_name = "Amulet"; break;
                 default: slot_name = "Unknown"; break;
             }
-            mvprintw(y++, center_x - 16, "%s: %s", slot_name, item ? item->name : "None");
+            if (item) {
+                if (item->type == ITEM_WEAPON || item->type == ITEM_ARMOR) {
+                    mvprintw(y++, center_x - 16, "%s: %s (Power: %d, Value: %d)", 
+                            slot_name, item->name, item->power, item->value);
+                } else {
+                    mvprintw(y++, center_x - 16, "%s: %s", slot_name, item->name);
+                }
+            } else {
+                mvprintw(y++, center_x - 16, "%s: None", slot_name);
+            }
         }
         attroff(COLOR_PAIR(4));
         
@@ -295,9 +304,18 @@ void view_inventory() {
         int item_count = 0;
         for (int i = 0; i < MAX_INVENTORY; i++) {
             Item* item = &player.inventory[i];
-            if (item->type != ITEM_NONE) {
+            if (item->type != ITEM_NONE && item->active) {  // Only show active items
                 attron(COLOR_PAIR(3));  // Yellow for items
-                mvprintw(y++, center_x - 16, "%d. %s", ++item_count, item->name);
+                if (item->type == ITEM_WEAPON || item->type == ITEM_ARMOR) {
+                    mvprintw(y++, center_x - 16, "%d. %s (Power: %d, Value: %d)", 
+                            ++item_count, item->name, item->power, item->value);
+                } else if (item->type == ITEM_POTION) {
+                    mvprintw(y++, center_x - 16, "%d. %s (Heals: %d, Value: %d)", 
+                            ++item_count, item->name, item->power, item->value);
+                } else {
+                    mvprintw(y++, center_x - 16, "%d. %s (Value: %d)", 
+                            ++item_count, item->name, item->value);
+                }
                 attroff(COLOR_PAIR(3));
             }
         }
@@ -342,9 +360,11 @@ void view_inventory() {
                 if (index >= 0 && index < item_count) {
                     // Find the actual item index
                     int actual_index = -1;
+                    int current_count = -1;
                     for (int i = 0; i < MAX_INVENTORY; i++) {
-                        if (player.inventory[i].type != ITEM_NONE) {
-                            if (++actual_index == index) {
+                        if (player.inventory[i].type != ITEM_NONE && player.inventory[i].active) {
+                            current_count++;
+                            if (current_count == index) {
                                 actual_index = i;
                                 break;
                             }
@@ -355,14 +375,20 @@ void view_inventory() {
                         switch (cmd) {
                             case 'u':
                                 use_item(&player.inventory[actual_index]);
+                                // Item will be deactivated by use_item if consumed
                                 break;
                             case 'd':
                                 drop_item(actual_index);
+                                // Item will be removed by drop_item
                                 break;
                             case 'e':
                                 equip_item(actual_index);
+                                // Item will be removed by equip_item
                                 break;
                         }
+                        // Brief pause to show the result message
+                        refresh();
+                        napms(500);  // 500ms delay to show the message
                     }
                 }
             }
