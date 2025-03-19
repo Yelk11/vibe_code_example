@@ -1,0 +1,7 @@
+obj/
+bin/
+*.o
+*.out
+*.exe
+*.so
+*.dylib
