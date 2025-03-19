@@ -78,7 +78,7 @@ void handle_input(int input) {
         case 'e': dx = 1; dy = -1; break;   // Move diagonally up-right
         case 'z': dx = -1; dy = 1; break;   // Move diagonally down-left
         case 'c': dx = 1; dy = 1; break;    // Move diagonally down-right
-        case 'i': handle_inventory(); break; // Open inventory
+        case 'i': view_inventory(); break; // Open inventory
         case '.': break;  // Wait one turn
         case 'Q': cleanup_game(); exit(0); break;  // Quit game
     }

@@ -99,15 +99,15 @@ typedef enum {
 
 // Terrain types
 typedef enum {
-    TERRAIN_FLOOR = '.',
     TERRAIN_WALL = '#',
+    TERRAIN_FLOOR = '.',
     TERRAIN_WATER = '~',
     TERRAIN_LAVA = '^',
-    TERRAIN_DOOR = '+',
-    TERRAIN_LOCKED_DOOR = 'D',
-    TERRAIN_LOCKED_STAIRS = '%',
     TERRAIN_GRASS = '"',
-    TERRAIN_TRAP = '_'
+    TERRAIN_TRAP = '_',
+    TERRAIN_STAIRS = '<',
+    TERRAIN_LOCKED_DOOR = '%',
+    TERRAIN_LOCKED_STAIRS = '%'
 } TerrainType;
 
 // Status effect types

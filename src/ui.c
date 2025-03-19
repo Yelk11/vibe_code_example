@@ -127,8 +127,17 @@ void draw() {
             }
             if (item_found) continue;
             
+            // Check for stairs
+            char tile = floor->map[y][x];
+            if (tile == '<' || tile == '>' || tile == '%') {
+                attron(COLOR_PAIR(3));  // Yellow for stairs
+                mvaddch(y - start_y, x - start_x, tile);
+                attroff(COLOR_PAIR(3));
+                continue;
+            }
+            
             // Draw terrain
-            mvaddch(y - start_y, x - start_x, floor->map[y][x]);
+            mvaddch(y - start_y, x - start_x, tile);
         }
         
         // Draw status and messages in the right margin
@@ -242,53 +251,123 @@ void view_inventory() {
     int term_width, term_height;
     get_terminal_size(&term_width, &term_height);
     
-    // Clear screen
-    clear();
-    
-    // Draw inventory header
-    attron(COLOR_PAIR(7));
-    mvprintw(0, term_width/2 - 10, "INVENTORY");
-    attroff(COLOR_PAIR(7));
-    
-    // Draw inventory items
-    int y = 2;
-    for (int i = 0; i < MAX_INVENTORY; i++) {
-        Item* item = &player.inventory[i];
-        if (item->type != ITEM_NONE) {
-            attron(COLOR_PAIR(3));  // Yellow for items
-            mvprintw(y++, 2, "%d. %s", i + 1, item->name);
-            attroff(COLOR_PAIR(3));
+    while (1) {
+        // Clear screen
+        clear();
+        
+        // Calculate center position
+        int center_x = term_width / 2;
+        int center_y = term_height / 2;
+        
+        // Draw inventory header
+        attron(COLOR_PAIR(7));
+        mvprintw(center_y - 10, center_x - 15, "=== Inventory (%d/%d) ===", player.num_items, MAX_INVENTORY);
+        mvhline(center_y - 9, center_x - 20, '-', 40);  // Draw separator line
+        attroff(COLOR_PAIR(7));
+        
+        // Draw equipment section first
+        int y = center_y - 8;
+        attron(COLOR_PAIR(7));
+        mvprintw(y++, center_x - 18, "Equipped:");
+        attroff(COLOR_PAIR(7));
+        
+        attron(COLOR_PAIR(4));  // Blue for equipment
+        for (int i = 0; i < MAX_EQUIPMENT_SLOTS; i++) {
+            Item* item = player.equipment[i];
+            const char* slot_name;
+            switch (i) {
+                case SLOT_WEAPON: slot_name = "Weapon"; break;
+                case SLOT_ARMOR: slot_name = "Armor"; break;
+                case SLOT_RING: slot_name = "Ring"; break;
+                case SLOT_AMULET: slot_name = "Amulet"; break;
+                default: slot_name = "Unknown"; break;
+            }
+            mvprintw(y++, center_x - 16, "%s: %s", slot_name, item ? item->name : "None");
+        }
+        attroff(COLOR_PAIR(4));
+        
+        // Draw inventory items
+        y += 2;  // Add spacing between sections
+        attron(COLOR_PAIR(7));
+        mvprintw(y++, center_x - 18, "Items:");
+        attroff(COLOR_PAIR(7));
+        
+        int item_count = 0;
+        for (int i = 0; i < MAX_INVENTORY; i++) {
+            Item* item = &player.inventory[i];
+            if (item->type != ITEM_NONE) {
+                attron(COLOR_PAIR(3));  // Yellow for items
+                mvprintw(y++, center_x - 16, "%d. %s", ++item_count, item->name);
+                attroff(COLOR_PAIR(3));
+            }
+        }
+        
+        // Draw controls at the bottom
+        y = center_y + 8;
+        attron(COLOR_PAIR(7));
+        mvprintw(y, center_x - 20, "Commands: (u)se item, (d)rop item, (e)quip item, (q)uit inventory");
+        mvprintw(y + 1, center_x - 20, "Enter command: ");
+        attroff(COLOR_PAIR(7));
+        
+        refresh();
+        
+        // Get input
+        char cmd = getch();
+        
+        if (cmd == 'q') break;
+        
+        if (cmd == 'u' || cmd == 'd' || cmd == 'e') {
+            // Get item number
+            mvprintw(y + 1, center_x - 20, "Enter item number (1-%d): ", item_count);
+            refresh();
+            
+            char num_str[16] = {0};
+            int num_pos = 0;
+            while (1) {
+                char c = getch();
+                if (c == '\n') break;
+                if (c == 27) { // ESC key
+                    num_pos = 0;
+                    break;
+                }
+                if (num_pos < 15 && c >= '0' && c <= '9') {
+                    num_str[num_pos++] = c;
+                    mvprintw(y + 1, center_x - 20 + 20 + num_pos - 1, "%c", c);
+                    refresh();
+                }
+            }
+            
+            if (num_pos > 0) {
+                int index = atoi(num_str) - 1;
+                if (index >= 0 && index < item_count) {
+                    // Find the actual item index
+                    int actual_index = -1;
+                    for (int i = 0; i < MAX_INVENTORY; i++) {
+                        if (player.inventory[i].type != ITEM_NONE) {
+                            if (++actual_index == index) {
+                                actual_index = i;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if (actual_index >= 0) {
+                        switch (cmd) {
+                            case 'u':
+                                use_item(&player.inventory[actual_index]);
+                                break;
+                            case 'd':
+                                drop_item(actual_index);
+                                break;
+                            case 'e':
+                                equip_item(actual_index);
+                                break;
+                        }
+                    }
+                }
+            }
         }
     }
-    
-    // Draw equipment
-    y += 2;
-    attron(COLOR_PAIR(7));
-    mvprintw(y++, 2, "EQUIPMENT");
-    attroff(COLOR_PAIR(7));
-    
-    attron(COLOR_PAIR(4));  // Blue for equipment
-    for (int i = 0; i < MAX_EQUIPMENT_SLOTS; i++) {
-        Item* item = player.equipment[i];
-        const char* slot_name;
-        switch (i) {
-            case SLOT_WEAPON: slot_name = "Weapon"; break;
-            case SLOT_ARMOR: slot_name = "Armor"; break;
-            case SLOT_RING: slot_name = "Ring"; break;
-            case SLOT_AMULET: slot_name = "Amulet"; break;
-            default: slot_name = "Unknown"; break;
-        }
-        mvprintw(y++, 4, "%s: %s", slot_name, item ? item->name : "None");
-    }
-    attroff(COLOR_PAIR(4));
-    
-    // Draw controls
-    y = term_height - 2;
-    attron(COLOR_PAIR(7));
-    mvprintw(y, 2, "Controls: [1-%d] Use/Equip | [d] Drop | [e] Equip | [u] Unequip | [q] Back", MAX_INVENTORY);
-    attroff(COLOR_PAIR(7));
-    
-    refresh();
 }
 
 // Render map
@@ -304,27 +383,31 @@ void render_map() {
             if (floor->visible[y][x]) {
                 char tile = floor->map[y][x];
                 
-                // Apply colors based on terrain type
-                switch (floor->terrain[y][x]) {
-                    case TERRAIN_WATER:
-                        attron(COLOR_PAIR(4));
-                        break;
-                    case TERRAIN_LAVA:
-                        attron(COLOR_PAIR(1));
-                        break;
-                    case TERRAIN_GRASS:
-                        attron(COLOR_PAIR(2));
-                        break;
-                    case TERRAIN_TRAP:
-                        attron(COLOR_PAIR(5));
-                        break;
-                    default:
-                        attron(COLOR_PAIR(7));
-                        break;
+                // Apply colors based on terrain type and special tiles
+                if (tile == '<' || tile == '>' || tile == '%') {
+                    attron(COLOR_PAIR(3));  // Yellow for stairs
+                } else {
+                    switch (floor->terrain[y][x]) {
+                        case TERRAIN_WATER:
+                            attron(COLOR_PAIR(4));
+                            break;
+                        case TERRAIN_LAVA:
+                            attron(COLOR_PAIR(1));
+                            break;
+                        case TERRAIN_GRASS:
+                            attron(COLOR_PAIR(2));
+                            break;
+                        case TERRAIN_TRAP:
+                            attron(COLOR_PAIR(5));
+                            break;
+                        default:
+                            attron(COLOR_PAIR(7));
+                            break;
+                    }
                 }
                 
                 mvaddch(y, x, tile);
-                attroff(COLOR_PAIR(1) | COLOR_PAIR(2) | COLOR_PAIR(4) | COLOR_PAIR(5) | COLOR_PAIR(7));
+                attroff(COLOR_PAIR(1) | COLOR_PAIR(2) | COLOR_PAIR(3) | COLOR_PAIR(4) | COLOR_PAIR(5) | COLOR_PAIR(7));
             } else if (floor->discovered[y][x]) {
                 mvaddch(y, x, floor->map[y][x] | A_DIM);
             } else {

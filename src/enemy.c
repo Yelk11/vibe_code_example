@@ -111,7 +111,7 @@ void spawn_enemy(int x, int y, EnemyType type) {
                     strcpy(enemy->name, "Goblin");
                     enemy->symbol = 'g';
                     enemy->health = enemy->max_health = 10;
-                    enemy->power = 6;
+                    enemy->power = 10;
                     enemy->defense = 1;
                     enemy->speed = 1;
                     enemy->range = 1;
@@ -122,7 +122,7 @@ void spawn_enemy(int x, int y, EnemyType type) {
                     strcpy(enemy->name, "Wolf");
                     enemy->symbol = 'w';
                     enemy->health = enemy->max_health = 8;
-                    enemy->power = 2;
+                    enemy->power = 20;
                     enemy->defense = 0;
                     enemy->speed = 2;
                     enemy->range = 1;
@@ -133,8 +133,8 @@ void spawn_enemy(int x, int y, EnemyType type) {
                     strcpy(enemy->name, "Archer");
                     enemy->symbol = 'a';
                     enemy->health = enemy->max_health = 6;
-                    enemy->power = 4;
-                    enemy->defense = 0;
+                    enemy->power = 25;
+                    enemy->defense = 5;
                     enemy->speed = 1;
                     enemy->range = 5;
                     enemy->exp_value = 20;
@@ -143,9 +143,9 @@ void spawn_enemy(int x, int y, EnemyType type) {
                 case ENEMY_BOSS:
                     strcpy(enemy->name, "Dragon");
                     enemy->symbol = 'D';
-                    enemy->health = enemy->max_health = 50;
-                    enemy->power = 8;
-                    enemy->defense = 3;
+                    enemy->health = enemy->max_health = 75;
+                    enemy->power = 25;
+                    enemy->defense = 50;
                     enemy->speed = 1;
                     enemy->range = 3;
                     enemy->exp_value = 100;
