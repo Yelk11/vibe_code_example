@@ -111,7 +111,7 @@ void move_player(int dx, int dy) {
     update_fov();
     
     // Check for items at new position
-    check_items();
+    check_player_items();
     
     // Handle stairs movement
     if (new_x == player.x && new_y == player.y) {
@@ -353,6 +353,9 @@ void use_item(Item* item) {
             
         case ITEM_KEY:
             add_message("This key might open something nearby...");
+            break;
+        case ITEM_NONE:
+            /* do nothing */
             break;
     }
 }
@@ -806,8 +809,8 @@ void update_status_effects() {
     }
 }
 
-// Modify check_items to update floor key status
-void check_items() {
+
+void check_player_items() {
     Floor* floor = current_floor_ptr();
     for (int i = 0; i < MAX_ITEMS; i++) {
         if (!floor->items[i].active) continue;

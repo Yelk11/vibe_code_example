@@ -6,6 +6,7 @@
 #include <string.h>
 #include <math.h>
 #include <time.h>
+#include <ncurses.h>  // Add ncurses header
 
 // Utility macros
 #define max(a,b) ((a) > (b) ? (a) : (b))
@@ -35,16 +36,6 @@
 #define MAX_INVENTORY 20
 #define MAX_STATUS_EFFECTS 10
 
-// Color codes for terminal
-#define COLOR_RESET   "\x1b[0m"
-#define COLOR_RED     "\x1b[31m"
-#define COLOR_GREEN   "\x1b[32m"
-#define COLOR_YELLOW  "\x1b[33m"
-#define COLOR_BLUE    "\x1b[34m"
-#define COLOR_MAGENTA "\x1b[35m"
-#define COLOR_CYAN    "\x1b[36m"
-#define COLOR_WHITE   "\x1b[37m"
-
 // Room types
 typedef enum {
     ROOM_NORMAL,
@@ -53,6 +44,22 @@ typedef enum {
     ROOM_LARGE,
     ROOM_SMALL
 } RoomType;
+
+// NPC types
+typedef enum {
+    NPC_BLACKSMITH,
+    NPC_SAGE,
+    NPC_MERCHANT,
+    NPC_STOREKEEPER
+} NPCType;
+
+// Store types
+typedef enum {
+    STORE_GENERAL,    // Sells basic items
+    STORE_WEAPONS,    // Sells weapons
+    STORE_ARMOR,      // Sells armor
+    STORE_POTIONS     // Sells potions and scrolls
+} StoreType;
 
 // Forward declarations of structures
 typedef struct Item Item;
@@ -67,6 +74,7 @@ typedef struct Door Door;
 typedef struct NPC NPC;
 typedef struct DialogueNode DialogueNode;
 typedef struct DialogueOption DialogueOption;
+typedef struct Store Store;  // Add Store forward declaration
 
 // Item types
 typedef enum {
@@ -132,13 +140,6 @@ typedef enum {
     MAX_ABILITIES
 } AbilityType;
 
-// NPC types
-typedef enum {
-    NPC_BLACKSMITH,
-    NPC_SAGE,
-    NPC_MERCHANT
-} NPCType;
-
 // Door structure definition
 struct Door {
     int x;
@@ -196,32 +197,31 @@ struct Ability {
     char description[128];
 };
 
-struct Player {
+// Store structure
+struct Store {
+    StoreType type;
     char name[MAX_NAME_LEN];
+    char description[MAX_DESC_LEN];
+    Item inventory[MAX_ITEMS];
+    int num_items;
+    int restock_timer;  // Turns until inventory restocks
+};
+
+struct NPC {
+    int id;
+    char name[MAX_NAME_LEN];
+    char description[MAX_DESC_LEN];
+    NPCType type;
+    char symbol;
     int x;
     int y;
-    int health;
-    int max_health;
-    int level;
-    int exp;
-    int exp_next;
-    int power;
-    int defense;
-    int gold;
-    Item inventory[MAX_INVENTORY];
-    Item* equipment[MAX_EQUIPMENT_SLOTS];
-    int num_items;
-    int mana;
-    int max_mana;
-    int mana_regen;
-    StatusEffect status[MAX_STATUS_EFFECTS];
-    Ability abilities[MAX_ABILITIES];
-    int num_abilities;
-    int critical_chance;    // Percentage chance for critical hits
-    int dodge_chance;       // Percentage chance to dodge attacks
-    int fire_resist;        // Percentage resistance to fire damage
-    int ice_resist;         // Percentage resistance to ice damage
-    int poison_resist;      // Percentage resistance to poison damage
+    int floor;
+    int active;
+    int current_dialogue_id;
+    int shop_inventory[INVENTORY_SIZE];
+    int num_shop_items;
+    char dialogue[MAX_DIALOGUE_LEN];
+    Store* store;  // Add store pointer
 };
 
 struct Room {
@@ -250,27 +250,40 @@ struct Floor {
     int has_floor_key;  // Whether the floor key has been collected
     int has_visited;    // Whether the player has visited this floor before
     int has_stairs;     // Whether stairs have been placed
+    NPC npcs[MAX_NPCS];  // Array of NPCs on this floor
+};
+
+struct Player {
+    char name[MAX_NAME_LEN];
+    int x;
+    int y;
+    int health;
+    int max_health;
+    int level;
+    int exp;
+    int exp_next;
+    int power;
+    int defense;
+    int gold;
+    Item inventory[MAX_INVENTORY];
+    Item* equipment[MAX_EQUIPMENT_SLOTS];
+    int num_items;
+    int mana;
+    int max_mana;
+    int mana_regen;
+    StatusEffect status[MAX_STATUS_EFFECTS];
+    Ability abilities[MAX_ABILITIES];
+    int num_abilities;
+    int critical_chance;    // Percentage chance for critical hits
+    int dodge_chance;       // Percentage chance to dodge attacks
+    int fire_resist;        // Percentage resistance to fire damage
+    int ice_resist;         // Percentage resistance to ice damage
+    int poison_resist;      // Percentage resistance to poison damage
 };
 
 struct MessageLog {
     char messages[MAX_MESSAGES][MESSAGE_LENGTH];
     int num_messages;
-};
-
-struct NPC {
-    int id;
-    char name[MAX_NAME_LEN];
-    char description[MAX_DESC_LEN];
-    NPCType type;
-    char symbol;
-    int x;
-    int y;
-    int floor;
-    int active;
-    int current_dialogue_id;
-    int shop_inventory[INVENTORY_SIZE];
-    int num_shop_items;
-    char dialogue[MAX_DIALOGUE_LEN];
 };
 
 struct DialogueOption {
@@ -297,7 +310,6 @@ extern MessageLog message_log;
 
 // Utility functions
 int random_range(int min, int max);
-int getch(void);
 void add_message(const char* fmt, ...);
 Floor* current_floor_ptr(void);
 const char* get_status_name(StatusType type);

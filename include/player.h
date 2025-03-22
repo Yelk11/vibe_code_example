@@ -23,7 +23,7 @@ void add_ability(AbilityType type);
 void use_ability(int index);
 void update_abilities(void);
 void update_status_effects(void);
-void check_items(void);
+void check_player_items(void);
 
 // Global player state
 extern Player player;

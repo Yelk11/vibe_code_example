@@ -3,12 +3,14 @@
 
 #include "common.h"
 
-// Game state
-extern Floor floors[MAX_FLOORS];
+// Global variables
+extern int camera_x;
+extern int camera_y;
+extern char messages[MAX_MESSAGES][MESSAGE_LENGTH];
 extern int current_floor;
+extern Floor floors[MAX_FLOORS];
+extern Player player;
 extern int game_turn;
-
-// Message log
 extern MessageLog message_log;
 
 // Player stats

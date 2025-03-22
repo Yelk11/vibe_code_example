@@ -7,6 +7,7 @@
 #include "enemy.h"
 #include "item.h"
 #include "player.h"
+#include "store.h"
 
 // Get current floor
 Floor* current_floor_ptr() {
@@ -428,7 +429,35 @@ void place_random_item(Floor* floor, Room* room) {
     }
 }
 
-// Generate a new floor
+// Add store to a room
+void place_store(Floor* floor, Room* room) {
+    // Find an empty spot in the room
+    int x = random_range(room->x + 1, room->x + room->width - 2);
+    int y = random_range(room->y + 1, room->y + room->height - 2);
+    
+    // Create a store
+    for (int i = 0; i < MAX_NPCS; i++) {
+        if (!floor->npcs[i].active) {
+            floor->npcs[i] = (NPC){
+                .x = x,
+                .y = y,
+                .symbol = 'S',  // Store symbol
+                .active = 1,
+                .type = NPC_STOREKEEPER,
+                .store = (Store*)malloc(sizeof(Store))
+            };
+            
+            if (floor->npcs[i].store) {
+                // Initialize store with random type
+                StoreType store_type = rand() % 4;  // 0-3 for different store types
+                init_store(floor->npcs[i].store, store_type);
+            }
+            break;
+        }
+    }
+}
+
+// Modify generate_floor to include stores
 void generate_floor(Floor* floor) {
     // Clear the floor
     memset(floor, 0, sizeof(Floor));
@@ -501,10 +530,70 @@ void generate_floor(Floor* floor) {
         }
     }
     
+    // After placing rooms and items, add stores
+    for (int i = 0; i < floor->num_rooms; i++) {
+        Room* room = &floor->rooms[i];
+        
+        // 20% chance for each room to have a store
+        if (rand() % 5 == 0) {
+            place_store(floor, room);
+        }
+    }
+    
     // Set player position in first room if this is floor 0
     if (current_floor == 0) {
         Room* first_room = &floor->rooms[0];
         player.x = first_room->x + first_room->width / 2;
         player.y = first_room->y + first_room->height / 2;
+    }
+}
+
+// Modify check_items to handle store interaction
+void check_items() {
+    Floor* floor = current_floor_ptr();
+    
+    // Check for store interaction
+    for (int i = 0; i < MAX_NPCS; i++) {
+        if (floor->npcs[i].active && 
+            floor->npcs[i].type == NPC_STOREKEEPER &&
+            player.x == floor->npcs[i].x && 
+            player.y == floor->npcs[i].y) {
+            
+            // Display store interface
+            if (floor->npcs[i].store) {
+                display_store(floor->npcs[i].store);
+            }
+            return;
+        }
+    }
+    
+    // Check for regular items
+    for (int i = 0; i < MAX_ITEMS; i++) {
+        if (!floor->items[i].active) continue;
+        
+        if (player.x == floor->items[i].x && player.y == floor->items[i].y) {
+            Item* item = &floor->items[i];
+            
+            if (item->type == ITEM_KEY && item->key_id == current_floor + 1) {
+                // Found the floor key
+                if (add_to_inventory(*item)) {
+                    add_message("Found %s! This will unlock the way forward.", item->name);
+                    floor->items[i].active = 0;
+                } else {
+                    add_message("Inventory full! Cannot pick up the floor key.");
+                }
+            } else if (item->type == ITEM_GOLD) {
+                player.gold += item->value;
+                add_message("Picked up %d gold!", item->value);
+                floor->items[i].active = 0;
+            } else {
+                if (add_to_inventory(floor->items[i])) {
+                    add_message("Picked up %s", item->name);
+                    floor->items[i].active = 0;
+                } else {
+                    add_message("Inventory full!");
+                }
+            }
+        }
     }
 } 
