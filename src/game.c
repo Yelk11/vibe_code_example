@@ -152,6 +152,16 @@ void render_game() {
             attroff(COLOR_PAIR(1));
         }
     }
+
+    // render store
+    for (int i = 0; i < MAX_NPCS; i++) {
+        NPC* npc = &floor->npcs[i];
+        if (npc->active && floor->visible[npc->y][npc->x]) {
+            attron(COLOR_PAIR(5));  // Magenta for store
+            mvaddch(npc->y, npc->x, npc->symbol);
+            attroff(COLOR_PAIR(5));
+        }
+    }
     
     // Finally render the player
     attron(COLOR_PAIR(2));  // Green for player

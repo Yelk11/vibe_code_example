@@ -250,15 +250,3 @@ void display_store(Store* store) {
     }
 } 
 
-// Spawn store for the current floor
-void spawn_store() 
-{
-    // Floor* floor = current_floor_ptr();
-    // int random_room = rand() % (floor->num_rooms + 1);
-    // Room* room = &floor->rooms[random_room];
-    // int x = room->x + 1 + rand() % (room->width - 2);
-    // int y = room->y + 1 + rand() % (room->height - 2);
-    // // TODO: spawn store at location
-    // floor->npcs->x = x;
-    // floor->npcs->y = y;
-} 

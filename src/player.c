@@ -1,6 +1,8 @@
 #include "player.h"
 #include "map.h"
 #include "enemy.h"
+#include "store.h"
+
 
 // Initialize player
 void init_player() {
@@ -79,7 +81,22 @@ void move_player(int dx, int dy) {
             return;
         }
     }
-    
+    // check for store interaction
+    for (int i = 0; i < MAX_NPCS; i++) {
+        if (floor->npcs[i].active && 
+            floor->npcs[i].type == NPC_STOREKEEPER &&
+            player.x + dx == floor->npcs[i].x && 
+            player.y + dy == floor->npcs[i].y) {
+            
+            // Display store interface
+            if (floor->npcs[i].store) {
+                display_store(floor->npcs[i].store);
+            }
+            return;
+        }
+    }
+
+
     // Check for locked stairs
     if (floor->map[new_y][new_x] == TERRAIN_LOCKED_STAIRS) {
         // Check inventory for floor key

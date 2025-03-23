@@ -450,20 +450,6 @@ void render_player() {
     attroff(COLOR_PAIR(2));
 }
 
-// Render enemies
-void render_enemies() {
-    Floor* floor = current_floor_ptr();
-    
-    attron(COLOR_PAIR(1));
-    for (int i = 0; i < MAX_ENEMIES; i++) {
-        Enemy* enemy = &floor->enemies[i];
-        if (enemy->active && floor->visible[enemy->y][enemy->x]) {
-            mvaddch(enemy->y, enemy->x, enemy->symbol);
-        }
-    }
-    attroff(COLOR_PAIR(1));
-}
-
 // Render messages
 void render_messages() {
     int start_y = MAP_HEIGHT + 1;

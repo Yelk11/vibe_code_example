@@ -442,7 +442,7 @@ void place_store(Floor* floor, Room* room) {
                 .x = x,
                 .y = y,
                 .symbol = 'S',  // Store symbol
-                .active = 1,
+                .active = TRUE,
                 .type = NPC_STOREKEEPER,
                 .store = (Store*)malloc(sizeof(Store))
             };
@@ -535,7 +535,7 @@ void generate_floor(Floor* floor) {
         Room* room = &floor->rooms[i];
         
         // 20% chance for each room to have a store
-        if (rand() % 5 == 0) {
+        if (TRUE) { // TODO was rand() % 5 == 0
             place_store(floor, room);
         }
     }
@@ -548,25 +548,10 @@ void generate_floor(Floor* floor) {
     }
 }
 
-// Modify check_items to handle store interaction
+// Check for items at player's position
 void check_items() {
     Floor* floor = current_floor_ptr();
-    
-    // Check for store interaction
-    for (int i = 0; i < MAX_NPCS; i++) {
-        if (floor->npcs[i].active && 
-            floor->npcs[i].type == NPC_STOREKEEPER &&
-            player.x == floor->npcs[i].x && 
-            player.y == floor->npcs[i].y) {
-            
-            // Display store interface
-            if (floor->npcs[i].store) {
-                display_store(floor->npcs[i].store);
-            }
-            return;
-        }
-    }
-    
+   
     // Check for regular items
     for (int i = 0; i < MAX_ITEMS; i++) {
         if (!floor->items[i].active) continue;
