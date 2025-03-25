@@ -1,8 +1,8 @@
-#include "game.h"
-#include "map.h"
-#include "player.h"
-#include "enemy.h"
-#include "ui.h"
+#include "../include/game.h"
+#include "../include/map.h"
+#include "../include/player.h"
+#include "../include/enemy.h"
+#include "../include/ui.h"
 #include <stdlib.h>
 #include <time.h>
 #include <ncurses.h>

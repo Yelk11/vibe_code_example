@@ -1,6 +1,6 @@
-#include "enemy.h"
-#include "player.h"
-#include "map.h"
+#include "../include/enemy.h"
+#include "../include/player.h"
+#include "../include/map.h"
 
 // Helper function declarations
 static int is_enemy_at(int x, int y);

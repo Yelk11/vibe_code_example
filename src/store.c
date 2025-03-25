@@ -1,9 +1,9 @@
 #include <ncurses.h>
-#include "store.h"
-#include "player.h"
-#include "ui.h"
-#include "item.h"
-#include "globals.h"
+#include "../include/store.h"
+#include "../include/player.h"
+#include "../include/ui.h"
+#include "../include/item.h"
+#include "../include/globals.h"
 
 // Initialize a store with random items based on its type
 void init_store(Store* store, StoreType type) {
@@ -250,3 +250,12 @@ void display_store(Store* store) {
     }
 } 
 
+StoreType get_store_type_from_int(int type) {
+    switch(type) {
+        case 0: return STORE_GENERAL;
+        case 1: return STORE_WEAPONS;
+        case 2: return STORE_ARMOR;
+        case 3: return STORE_POTIONS;
+        default: return STORE_GENERAL;
+    }
+}

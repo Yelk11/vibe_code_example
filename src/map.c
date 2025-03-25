@@ -2,12 +2,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include "map.h"
-#include "globals.h"
-#include "enemy.h"
-#include "item.h"
-#include "player.h"
-#include "store.h"
+#include "../include/map.h"
+#include "../include/globals.h"
+#include "../include/enemy.h"
+#include "../include/item.h"
+#include "../include/player.h"
+#include "../include/store.h"
 
 // Get current floor
 Floor* current_floor_ptr() {
@@ -373,7 +373,7 @@ void place_random_item(Floor* floor, Room* room) {
             // First clear the item struct completely
             memset(&floor->items[i], 0, sizeof(Item));
             
-            ItemType type = random_range(ITEM_WEAPON, ITEM_GOLD);
+            ItemType type = get_item_type_from_int(random_range(ITEM_WEAPON, ITEM_GOLD));
             
             // Set common properties
             floor->items[i].x = x;
@@ -451,7 +451,7 @@ void place_store(Floor* floor, Room* room) {
             
             if (floor->npcs[i].store) {
                 // Initialize store with random type
-                StoreType store_type = rand() % 4;  // 0-3 for different store types
+                StoreType store_type = get_store_type_from_int(rand() % 4);  // 0-3 for different store types
                 init_store(floor->npcs[i].store, store_type);
             }
             break;

@@ -1,7 +1,7 @@
 #include <stdarg.h>
 #include <termios.h>
 #include <unistd.h>
-#include "common.h"
+#include "../include/common.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

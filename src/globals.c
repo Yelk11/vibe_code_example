@@ -1,5 +1,5 @@
-#include "globals.h"
-#include "common.h"
+#include "../include/globals.h"
+#include "../include/common.h"
 
 // Game state
 Floor floors[MAX_FLOORS];

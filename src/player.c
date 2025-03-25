@@ -1,7 +1,7 @@
-#include "player.h"
-#include "map.h"
-#include "enemy.h"
-#include "store.h"
+#include "../include/player.h"
+#include "../include/map.h"
+#include "../include/enemy.h"
+#include "../include/store.h"
 
 
 // Initialize player

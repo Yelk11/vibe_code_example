@@ -11,5 +11,6 @@ void init_items(Floor* floor);
 // Item management functions
 void apply_item_effect(Item* item);
 void place_items(Floor* floor);
+ItemType get_item_type_from_int(int type);
 
 #endif // ITEM_H 

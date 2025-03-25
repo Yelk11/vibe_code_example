@@ -1,6 +1,6 @@
-#include "game.h"
-#include "ui.h"
-#include "player.h"
+#include "../include/game.h"
+#include "../include/ui.h"
+#include "../include/player.h"
 #include <locale.h>
 
 int main() {

@@ -1,6 +1,6 @@
-#include "item.h"
-#include "player.h"
-#include "map.h"
+#include "../include/item.h"
+#include "../include/player.h"
+#include "../include/map.h"
 
 // Get random item type
 ItemType get_random_item_type() {
@@ -154,3 +154,15 @@ void init_items(Floor* floor) {
         }
     }
 } 
+
+ItemType get_item_type_from_int(int type) {
+    switch(type) {
+        case 0: return ITEM_WEAPON;
+        case 1: return ITEM_ARMOR;
+        case 2: return ITEM_POTION;
+        case 3: return ITEM_SCROLL;
+        case 4: return ITEM_FOOD;
+        case 5: return ITEM_GOLD;
+        default: return ITEM_NONE;
+    }
+}

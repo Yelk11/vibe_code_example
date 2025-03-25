@@ -1,5 +1,5 @@
-#include "message.h"
-#include "globals.h"
+#include "../include/message.h"
+#include "../include/globals.h"
 #include <stdarg.h>
 #include <string.h>
 
@@ -25,3 +25,9 @@ void add_message(const char* format, ...) {
 void clear_messages(void) {
     message_log.num_messages = 0;
 } 
+
+MessageLog init_message_log(void) {
+    MessageLog log;
+    log.num_messages = 0;
+    return log;
+}

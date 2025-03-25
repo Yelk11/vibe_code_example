@@ -1,8 +1,8 @@
-#include "ui.h"
-#include "game.h"
-#include "player.h"
-#include "enemy.h"
-#include "message.h"
+#include "../include/ui.h"
+#include "../include/game.h"
+#include "../include/player.h"
+#include "../include/enemy.h"
+#include "../include/message.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <ncurses.h>
