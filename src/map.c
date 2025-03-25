@@ -193,9 +193,9 @@ void place_locked_door(Floor* floor, Room* room1, Room* room2, int key_id) {
 // Place a key in a room
 void place_key(Floor* floor, Room* room, int key_id, int target_floor) {
     // Find an empty spot in the room
-    int x = random_range(room->x + 1, room->x + room->width - 2);
-    int y = random_range(room->y + 1, room->y + room->height - 2);
-    
+    int x = random_range(room->x + 2, room->x + room->width - 4);
+    int y = random_range(room->y + 2, room->y + room->height - 4);
+
     // Create the key
     for (int i = 0; i < MAX_ITEMS; i++) {
         if (!floor->items[i].active) {
@@ -221,9 +221,9 @@ void place_key(Floor* floor, Room* room, int key_id, int target_floor) {
 // Place a floor key in a room
 void place_floor_key(Floor* floor, Room* room) {
     // Find an empty spot in the room
-    int x = random_range(room->x + 1, room->x + room->width - 2);
-    int y = random_range(room->y + 1, room->y + room->height - 2);
-    
+    int x = random_range(room->x + 2, room->x + room->width - 4);
+    int y = random_range(room->y + 2, room->y + room->height - 4);
+
     // Create the floor key
     for (int i = 0; i < MAX_ITEMS; i++) {
         if (!floor->items[i].active) {
@@ -364,9 +364,9 @@ void update_fov() {
 // Place a random item in a room
 void place_random_item(Floor* floor, Room* room) {
     // Find an empty spot in the room
-    int x = random_range(room->x + 1, room->x + room->width - 2);
-    int y = random_range(room->y + 1, room->y + room->height - 2);
-    
+    int x = random_range(room->x + 2, room->x + room->width - 4);
+    int y = random_range(room->y + 2, room->y + room->height - 4);
+
     // Create a random item
     for (int i = 0; i < MAX_ITEMS; i++) {
         if (!floor->items[i].active) {
@@ -429,11 +429,13 @@ void place_random_item(Floor* floor, Room* room) {
     }
 }
 
+
+
 // Add store to a room
 void place_store(Floor* floor, Room* room) {
     // Find an empty spot in the room
-    int x = random_range(room->x + 1, room->x + room->width - 2);
-    int y = random_range(room->y + 1, room->y + room->height - 2);
+    int x = random_range(room->x + 2, room->x + room->width - 4);
+    int y = random_range(room->y + 2, room->y + room->height - 4);
     
     // Create a store
     for (int i = 0; i < MAX_NPCS; i++) {
@@ -535,7 +537,7 @@ void generate_floor(Floor* floor) {
         Room* room = &floor->rooms[i];
         
         // 20% chance for each room to have a store
-        if (TRUE) { // TODO was rand() % 5 == 0
+        if (rand() % 5 == 0) {
             place_store(floor, room);
         }
     }
