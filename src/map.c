@@ -125,7 +125,9 @@ void place_stairs_in_room(Floor* floor, Room* room) {
         attempts--;
     }
     
-    if (attempts > 0) {
+    if (attempts > 0 &&
+        floor->floor_num != 0) 
+    {
         floor->map[stairs_y][stairs_x] = '<';
         floor->terrain[stairs_y][stairs_x] = TERRAIN_STAIRS;
         floor->up_stairs_x = stairs_x;

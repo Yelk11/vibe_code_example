@@ -251,6 +251,7 @@ struct Floor {
     int has_visited;    // Whether the player has visited this floor before
     int has_stairs;     // Whether stairs have been placed
     NPC npcs[MAX_NPCS];  // Array of NPCs on this floor
+    int floor_num;
 };
 
 struct Player {

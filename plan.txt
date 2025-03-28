@@ -1,0 +1,17 @@
+Known bugs
+- sometimes player is spawned randomly outside of valid space
+
+
+
+Map Gen
+have the dungeon generator make a large map that goes outside of the view
+- infinite map?
+
+Items
+- scrolls that you read and gain the power, but could also harm you
+- more weapons and armor
+- friendly NPCs?
+
+
+
+
