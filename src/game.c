@@ -4,13 +4,12 @@
 #include "../include/enemy.h"
 #include "../include/ui.h"
 #include <stdlib.h>
-#include <time.h>
 #include <ncurses.h>
 
 // Initialize game state
-void init_game() {
+void init_game(long seed) {
     // Initialize random number generator
-    srand(time(NULL));
+    srand(seed);
     
     // Initialize UI
     init_ui();

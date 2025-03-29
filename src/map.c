@@ -545,7 +545,8 @@ void generate_floor(Floor* floor) {
     }
     
     // Set player position in first room if this is floor 0
-    if (current_floor == 0) {
+    if (current_floor == 0) 
+    {
         Room* first_room = &floor->rooms[0];
         player.x = first_room->x + first_room->width / 2;
         player.y = first_room->y + first_room->height / 2;

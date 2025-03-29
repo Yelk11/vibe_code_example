@@ -9,7 +9,7 @@
 #include "ui.h"
 
 // Game state functions
-void init_game(void);
+void init_game(long seed);
 void cleanup_game(void);
 void game_loop(void);
 void handle_input(int input);

@@ -6,6 +6,7 @@ Known bugs
 Map Gen
 have the dungeon generator make a large map that goes outside of the view
 - infinite map?
+- generate from seed so that testing/ debugging will be easier
 
 Items
 - scrolls that you read and gain the power, but could also harm you
