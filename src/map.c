@@ -22,8 +22,8 @@ Room generate_room() {
     room.type = ROOM_NORMAL;  // Only use normal square rooms
     
     // Generate square room dimensions with larger minimum size
-    room.width = random_range(MIN_ROOM_SIZE + 4, MAX_ROOM_SIZE);  // Increased minimum size
-    room.height = room.width;  // Make it square
+    room.width = random_range(MIN_ROOM_SIZE + 4, MAX_ROOM_SIZE);
+    room.height = random_range(MIN_ROOM_SIZE + 4, MAX_ROOM_SIZE);
     room.x = random_range(1, MAP_WIDTH - room.width - 1);
     room.y = random_range(1, MAP_HEIGHT - room.height - 1);
     
@@ -159,67 +159,6 @@ void place_stairs_in_room(Floor* floor, Room* room) {
     }
 }
 
-// Place a locked door between two rooms
-void place_locked_door(Floor* floor, Room* room1, Room* room2, int key_id) {
-    int x1 = room1->x + room1->width / 2;
-    int y1 = room1->y + room1->height / 2;
-    int x2 = room2->x + room2->width / 2;
-    int y2 = room2->y + room2->height / 2;
-    
-    // Find a point along the path between rooms for the door
-    int door_x = (x1 + x2) / 2;
-    int door_y = (y1 + y2) / 2;
-    
-    // Adjust door position to be on a wall
-    if (floor->map[door_y-1][door_x] == '#' && floor->map[door_y+1][door_x] == '#') {
-        // Vertical door
-        floor->map[door_y][door_x] = TERRAIN_LOCKED_DOOR;
-    } else if (floor->map[door_y][door_x-1] == '#' && floor->map[door_y][door_x+1] == '#') {
-        // Horizontal door
-        floor->map[door_y][door_x] = TERRAIN_LOCKED_DOOR;
-    }
-    
-    // Add door to floor's door array
-    if (floor->num_doors < MAX_DOORS) {
-        Door door = {
-            .x = door_x,
-            .y = door_y,
-            .floor_num = current_floor,
-            .key_id = key_id,
-            .is_locked = 1
-        };
-        floor->doors[floor->num_doors++] = door;
-    }
-}
-
-// Place a key in a room
-void place_key(Floor* floor, Room* room, int key_id, int target_floor) {
-    // Find an empty spot in the room
-    int x = random_range(room->x + 2, room->x + room->width - 4);
-    int y = random_range(room->y + 2, room->y + room->height - 4);
-
-    // Create the key
-    for (int i = 0; i < MAX_ITEMS; i++) {
-        if (!floor->items[i].active) {
-            floor->items[i] = (Item){
-                .name = "Ancient Key",
-                .description = "A mysterious key that might open something important",
-                .x = x,
-                .y = y,
-                .symbol = 'k',
-                .active = 1,
-                .type = ITEM_KEY,
-                .value = 100,
-                .key_id = key_id,
-                .target_floor = target_floor
-            };
-            strcpy(floor->items[i].name, "Ancient Key");
-            strcpy(floor->items[i].description, "A mysterious key that might open something important");
-            break;
-        }
-    }
-}
-
 // Place a floor key in a room
 void place_floor_key(Floor* floor, Room* room) {
     // Find an empty spot in the room
@@ -248,22 +187,7 @@ void place_floor_key(Floor* floor, Room* room) {
     }
 }
 
-// Create a room in the map based on its type
-void create_room_in_map(Floor* floor, Room* room) {
-    // Create square room
-    for (int y = room->y; y < room->y + room->height; y++) {
-        for (int x = room->x; x < room->x + room->width; x++) {
-            if (y == room->y || y == room->y + room->height - 1 ||
-                x == room->x || x == room->x + room->width - 1) {
-                floor->map[y][x] = '#';
-                floor->terrain[y][x] = TERRAIN_WALL;
-            } else {
-                floor->map[y][x] = '.';
-                floor->terrain[y][x] = TERRAIN_FLOOR;
-            }
-        }
-    }
-}
+
 
 // Initialize a floor
 void init_floor(int floor_num) {
@@ -461,7 +385,7 @@ void place_store(Floor* floor, Room* room) {
     }
 }
 
-// Modify generate_floor to include stores
+
 void generate_floor(Floor* floor) {
     // Clear the floor
     memset(floor, 0, sizeof(Floor));

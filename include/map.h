@@ -20,7 +20,6 @@ void generate_floor(Floor* floor);
 int is_away_from_walls(Floor* floor, int x, int y);
 void place_store(Floor* floor, Room* room);
 void check_items(void);
-void place_key(Floor* floor, Room* room, int key_id, int target_floor);
 void place_random_item(Floor* floor, Room* room);
 
 #endif // MAP_H 
