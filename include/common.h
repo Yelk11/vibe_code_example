@@ -258,6 +258,7 @@ struct Player {
     char name[MAX_NAME_LEN];
     int x;
     int y;
+    char symbol;
     int health;
     int max_health;
     int level;

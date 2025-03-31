@@ -5,15 +5,7 @@
 // Helper function declarations
 static int is_enemy_at(int x, int y);
 
-// Initialize enemies
-void init_enemies()
-{
-    Floor *floor = current_floor_ptr();
-    for (int i = 0; i < MAX_ENEMIES; i++)
-    {
-        floor->enemies[i].active = 0;
-    }
-}
+
 
 // Update a single enemy
 void update_enemy(Enemy *enemy)

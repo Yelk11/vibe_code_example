@@ -2,6 +2,10 @@ Known bugs
 - sometimes player is spawned randomly outside of valid space
 
 
+General
+- save game
+- load game
+
 
 Map Gen
 have the dungeon generator make a large map that goes outside of the view

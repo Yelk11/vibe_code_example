@@ -9,7 +9,6 @@ void cleanup_ui(void);
 
 // Rendering functions
 void render_map(void);
-void render_player(void);
 void render_enemies(void);
 void render_messages(void);
 void render_status(void);
@@ -23,15 +22,13 @@ void show_help_screen(void);
 void show_death_screen(void);
 
 // Drawing functions
-void draw(void);
-void update_camera(void);
-void render_ui(void);
 
-// Input handling
-char get_input(void);
+void update_camera(void);
+
+
+
 
 // Window management
-void handle_resize(void);
 void get_terminal_size(int* width, int* height);
 
 // Message handling
