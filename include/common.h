@@ -13,11 +13,11 @@
 #define min(a,b) ((a) < (b) ? (a) : (b))
 
 // Game constants
-#define MAP_WIDTH 80
-#define MAP_HEIGHT 40
-#define SCREEN_WIDTH 40
-#define SCREEN_HEIGHT 20
-#define MAX_ROOMS 12
+#define MAP_WIDTH 100
+#define MAP_HEIGHT 100
+#define SCREEN_WIDTH 80
+#define SCREEN_HEIGHT 40
+#define MAX_ROOMS 120
 #define MIN_ROOM_SIZE 5
 #define MAX_ROOM_SIZE 10
 #define MAX_ENEMIES 5

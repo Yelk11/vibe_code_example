@@ -277,7 +277,22 @@ void render_map()
         {
             map_x = x + player.x - SCREEN_WIDTH / 2;
             map_y = y + player.y - SCREEN_HEIGHT / 2;
-
+            if (map_x >= MAP_WIDTH)
+            {
+                map_x = MAP_WIDTH;
+            }
+            if (map_x < 0)
+            {
+                map_x = 0;
+            }
+            if (map_y >= MAP_HEIGHT)
+            {
+                map_y = MAP_HEIGHT;
+            }
+            if (map_y < 0)
+            {
+                map_y = 0;
+            }
             if (floor->visible[map_y][map_x])
             {
 
